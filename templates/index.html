@@ -106,7 +106,7 @@
       <div>{{ usr ? usr.name : '访客用户' }}</div>
       <h1>今天<span>花了多少</span>？</h1>
     </div>
-    <div class="header-date" id="headerDate"></div>
+    <div class="header-date">{{headerDate}}</div>
   </div>
   <div class="summary">
     <div><div class="s-label">本月收支净结余</div><div class="s-val">¥{{ currentNetTotal }}</div></div>
@@ -132,7 +132,7 @@
         </div>
       </div>
     </div>
-    <div class="input-row"><input v-model="aiTxt" @keyup.enter="sendAi" placeholder="发工资 8000 / 午饭 35..." aria-label="AI 录入"><button @click="sendAi">→</button></div>
+    <div class="input-row"><input v-model="aiTxt" @keyup="e=>e.key==='Enter'&&sendAi()" placeholder="发工资 8000 / 午饭 35..." aria-label="AI 录入"><button @click="sendAi">→</button></div>
     <div style="padding:8px 14px;border-radius:12px;background:rgba(199,91,57,.06);border:1px solid rgba(199,91,57,.15);margin-top:6px;font-size:11px;color:var(--rust);">📢 {{ announce||'暂无公告' }}</div>
   </div>
 
@@ -262,9 +262,9 @@ createApp({setup(){
   const toast=m=>{const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);};
 
   loadBills();loadAnnounce();loadAi();loadAdmin();loadStats();
-  document.getElementById('headerDate').textContent=new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'short'});
+  const headerDate=new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'short'});
 
-  return{pg,drawer,showLogin,showAdmin,flt,aiTxt,chat,chatScroll,form,lU,lP,adminPw,usr,isAdm,bills,adminUsers,announce,aiConf,newUser,sIn,sOut,barHtml,cats,tabs,filters,totalIncome,totalExpense,currentNetTotal,sYm,go,openDrawer,filtered,saveBill,sendAi,confirmAi,doLogin,doRegister,doLogout,verifyAdmin,exitAdmin,saveAnnounce,saveAiConf,addUser,deleteUser,exportCSV};
+  return{pg,drawer,showLogin,showAdmin,flt,aiTxt,chat,chatScroll,form,lU,lP,adminPw,usr,isAdm,bills,adminUsers,announce,aiConf,newUser,sIn,sOut,barHtml,cats,tabs,filters,totalIncome,totalExpense,currentNetTotal,sYm,go,openDrawer,filtered,saveBill,sendAi,confirmAi,doLogin,doRegister,doLogout,verifyAdmin,exitAdmin,saveAnnounce,saveAiConf,addUser,deleteUser,exportCSV,headerDate};
 }}).mount('#app');
 </script>
 </body>
