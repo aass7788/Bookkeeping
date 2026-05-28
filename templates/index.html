@@ -222,14 +222,15 @@
 
 <script>
 const {createApp,ref,computed,reactive,nextTick}=Vue;
-const API=(p,o={})=>{const h={'Content-Type':'application/json'};const t=localStorage.getItem('jz_token');if(t)h['X-Auth-Token']=t;else{let u=localStorage.getItem('jz_uid');if(!u){u='g_'+Date.now().toString(36);localStorage.setItem('jz_uid',u);}h['X-User-Id']=u;}return fetch(p,{headers:h,...o}).then(r=>r.json()).catch(e=>({error:e.message}));};
+let GUEST_ID=localStorage.getItem('_uid');if(!GUEST_ID){GUEST_ID='u_'+Date.now().toString(36);localStorage.setItem('_uid',GUEST_ID);}
+const API=(p,o={})=>{const h={'Content-Type':'application/json','X-Auth-Token':localStorage.getItem('_token')||'','X-User-Id':GUEST_ID};const opt={headers:h,...o};return fetch(p,opt).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'HTTP '+r.status);return d;}).catch(e=>({error:e.message}));};
 
 createApp({setup(){
   const pg=ref('log'),drawer=ref(false),showLogin=ref(false),showAdmin=ref(false),flt=ref('全部');
   const aiTxt=ref(''),chat=ref([{role:'ai',text:'你好！告诉我花了或赚了多少。',parsed:[]}]);
   const form=reactive({cat:'餐饮',amt:'',note:'',type:'expense'});
   const lU=ref(''),lP=ref(''),adminPw=ref('');
-  const usr=ref(JSON.parse(localStorage.getItem('jz_usr')||'null'));
+  const usr=ref((()=>{const u=localStorage.getItem('_user');return u?{name:u,id:(localStorage.getItem('_token')||'').slice(0,8)}:null;})());
   const isAdm=ref(!!localStorage.getItem('jz_adm'));
   const bills=ref([]),adminUsers=ref([]),announce=ref('');
   const aiConf=reactive({url:'',key:'',model:'',provider:'openai',path:'/v1/chat/completions'});const newUser=ref('');
@@ -257,9 +258,9 @@ createApp({setup(){
   const sendAi=async()=>{const t=aiTxt.value.trim();if(!t)return;chat.value.push({role:'user',text:t,id:Date.now()});aiTxt.value='';try{const r=await API('/api/chat',{method:'POST',body:JSON.stringify({text:t})});if(r.result){chat.value.push({role:'ai',text:r.result,parsed:(r.bills||[]).map(b=>({icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:'expense',note:b.note})),id:Date.now()+1});}else{const msg=r.error||('HTTP '+r.status||'解析失败');if(msg.includes('配置AI接口'))chat.value.push({role:'ai',text:'⚠️ AI 未配置 — 请管理员在设置→管理员模式→AI接口配置中填写 API 地址和 Key',parsed:[],id:Date.now()+1});else chat.value.push({role:'ai',text:'服务端错误: '+msg,parsed:[],id:Date.now()+1});}}catch(e){chat.value.push({role:'ai',text:'网络不可达，请确认服务在线',parsed:[],id:Date.now()+1});}nextTick(()=>{if(chatScroll.value)chatScroll.value.scrollTop=chatScroll.value.scrollHeight;});};
   const confirmAi=async(p,m)=>{await API('/api/bills',{method:'POST',body:JSON.stringify({amount:parseFloat(p.amt),category:p.cat,description:p.note||'AI录入',bill_date:new Date().toISOString().slice(0,10),is_income:p.type==='income'?1:0})});m.parsed=[];loadBills();toast('✓ 已确认');};
 
-  const doLogin=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p)return toast('请填写完整');const d=await API('/api/auth/login',{method:'POST',body:JSON.stringify({username:u,password:p})});if(d.token){localStorage.setItem('jz_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('jz_usr',JSON.stringify(usr.value));showLogin.value=false;lU.value='';lP.value='';loadBills();toast('👋 '+u);}else toast(d.error||'登录失败');};
-  const doRegister=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p||p.length<4)return toast('密码至少4位');const d=await API('/api/auth/register',{method:'POST',body:JSON.stringify({username:u,password:p})});if(d.token){localStorage.setItem('jz_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('jz_usr',JSON.stringify(usr.value));showLogin.value=false;lU.value='';lP.value='';loadBills();toast('🎉 '+u);}else toast(d.error||'注册失败');};
-  const doLogout=()=>{localStorage.removeItem('jz_token');localStorage.removeItem('jz_usr');usr.value=null;isAdm.value=false;localStorage.removeItem('jz_adm');bills.value=[];toast('已退出');};
+  const doLogin=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p)return toast('请填写完整');const d=await API('/api/auth/login',{method:'POST',body:JSON.stringify({username:u,password:p})});if(d.token){localStorage.setItem('_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('_user',u);showLogin.value=false;lU.value='';lP.value='';loadBills();toast('👋 '+u);}else toast(d.error||'登录失败');};
+  const doRegister=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p||p.length<4)return toast('密码至少4位');const d=await API('/api/auth/register',{method:'POST',body:JSON.stringify({username:u,password:p})});if(d.token){localStorage.setItem('_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('_user',u);showLogin.value=false;lU.value='';lP.value='';loadBills();toast('🎉 '+u);}else toast(d.error||'注册失败');};
+  const doLogout=()=>{localStorage.removeItem('_token');localStorage.removeItem('_user');usr.value=null;isAdm.value=false;localStorage.removeItem('jz_adm');bills.value=[];toast('已退出');};
   const verifyAdmin=async()=>{const d=await API('/api/admin/login',{method:'POST',body:JSON.stringify({password:adminPw.value})});if(d.success){isAdm.value=true;localStorage.setItem('jz_adm','1');showAdmin.value=false;adminPw.value='';loadAdmin();loadAi();toast('👑 管理员');}else toast('❌ 密码错误');};
   const exitAdmin=()=>{isAdm.value=false;localStorage.removeItem('jz_adm');go('me');};
   const saveAnnounce=async()=>{await API('/api/settings',{method:'PUT',body:JSON.stringify({announcement:announce.value})});toast('📢 已发布');};
