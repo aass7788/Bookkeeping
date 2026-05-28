@@ -1,349 +1,409 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#4CAF50">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="manifest" href="/static/manifest.json">
-    <link rel="stylesheet" href="/static/css/style.css">
-    <title>AI自动记账</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="AI 智能记账 — 对话式录入，自动识别分类与金额">
+<meta name="theme-color" content="#f5f0e8">
+<title>自动记账 · AutoLedger</title>
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{ --paper:#f5f0e8;--ink:#1a1714;--ink2:#5c554d;--ink3:#9e958b;--rust:#c75b39;--emerald:#2e7d32;--line:rgba(0,0,0,.06);--card:rgba(255,255,255,.65); }
+  *,*::before,*::after{ margin:0;padding:0;box-sizing:border-box; }
+  body{ background:linear-gradient(160deg,#ede7db,#e8e0d2 40%,#f0ebe2 70%,#e5ddd0); color:var(--ink);font-family:"Noto Serif SC","PingFang SC",serif; min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:10px; }
+  body::after{ content:'';position:fixed;inset:0;pointer-events:none;opacity:.035;z-index:9999; background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E"); }
+  .app{ width:100%;max-width:400px;height:calc(100vh - 20px);max-height:840px;background:var(--paper);border-radius:28px; overflow:hidden;box-shadow:0 2px 40px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.03); display:flex;flex-direction:column;position:relative;z-index:1; }
+  .header{padding:30px 22px 6px;display:flex;justify-content:space-between;align-items:baseline;}
+  .header-left>div:first-child{font-size:11px;color:var(--ink3);letter-spacing:2px;text-transform:uppercase;}
+  .header-left h1{font-size:31px;font-weight:900;letter-spacing:-2px;line-height:1.1;margin-top:2px;}
+  .header-left h1 span{color:var(--rust);}
+  .header-date{font-size:11px;color:var(--ink3);font-family:"DM Mono",monospace;}
+  .summary{ margin:10px 20px 14px;padding:16px 20px;border-radius:16px; background:var(--ink);color:#fff;display:flex;justify-content:space-between;align-items:flex-end; position:relative;overflow:hidden;flex-shrink:0; }
+  .summary::after{ content:'';position:absolute;top:-30%;right:-20%;width:100px;height:100px; background:var(--rust);border-radius:50%;opacity:.15;pointer-events:none; }
+  .s-label{font-size:9px;opacity:.45;letter-spacing:2px;text-transform:uppercase;position:relative;z-index:1;}
+  .s-val{font-size:32px;font-family:"DM Mono",monospace;font-weight:500;letter-spacing:-1px;position:relative;z-index:1;}
+  .s-trend{font-size:10px;opacity:.5;font-family:"DM Mono",monospace;position:relative;z-index:1;}
+  .page{flex:1;overflow-y:auto;padding:0 20px 85px;display:none;flex-direction:column;}
+  .page.on{display:flex;}
+  .chat-container{flex:1;overflow-y:auto;margin-bottom:10px;padding-right:2px;}
+  .msg{margin-bottom:14px;animation:up .35s ease-out both;display:flex;flex-direction:column;}
+  @keyframes up{from{opacity:0;transform:translateY(10px);}}
+  .bubble-user{ padding:10px 15px;border-radius:16px 16px 4px 16px;background:var(--ink);color:#fff; align-self:flex-end;max-width:88%;font-size:14px;line-height:1.6; }
+  .bubble-ai{ padding:10px 15px;border-radius:16px 16px 16px 4px;background:var(--card); border:1px solid var(--line);align-self:flex-start;max-width:88%;font-size:13px;line-height:1.8; }
+  .parsed-item{ margin-top:6px;padding:8px 0;border-top:1px solid var(--line); display:flex;flex-direction:column;align-items:stretch;gap:4px; }
+  .confirm-btn{ padding:3px 12px;border-radius:99px;font-size:10px;background:var(--ink);color:#fff; cursor:pointer;border:none;font-family:inherit;transition:opacity .2s; }
+  .confirm-btn.ghost{background:none;color:var(--ink2);border:1px solid var(--line);}
+  .input-row{display:flex;gap:8px;margin-top:auto;flex-shrink:0;}
+  .input-row input{ flex:1;padding:13px 16px;border-radius:14px;border:1px solid var(--line); background:var(--card);font-family:inherit;font-size:14px;color:var(--ink);outline:none;transition:border .2s; }
+  .input-row input:focus{border-color:var(--rust);box-shadow:0 0 0 3px rgba(199,91,57,.06);}
+  .input-row button{ padding:13px 18px;border-radius:14px;background:var(--ink);color:#fff;border:none; font-family:inherit;font-weight:700;cursor:pointer;transition:transform .2s; }
+
+  .drawer-bg,.modal-bg{ position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:150; display:none;align-items:flex-end; }
+  .drawer-bg.on,.modal-bg.on{display:flex;}
+  .modal-bg{align-items:center;justify-content:center;z-index:200;}
+  .drawer{ width:100%;background:var(--paper);border-radius:22px 22px 0 0;padding:24px 20px; max-height:92%;overflow-y:auto;animation:slideUp .3s ease-out; }
+  @keyframes slideUp{from{transform:translateY(100%);}}
+  .drawer-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .drawer-header span{font-weight:700;font-size:15px;}
+  .drawer-header button{background:none;border:none;font-size:22px;color:var(--ink3);cursor:pointer;}
+
+  .adm-sec{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;}
+  .adm-title{font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px;}
+  .adm-list-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);font-size:12px;}
+  .adm-list-item:last-child{border:none;}
+
+  .cats{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;}
+  .cat{ padding:7px 13px;border-radius:99px;font-size:12px;cursor:pointer; background:var(--card);border:1px solid var(--line);color:var(--ink2); display:flex;align-items:center;gap:4px;transition:background .2s,color .2s; }
+  .cat.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .field{margin-bottom:10px;}
+  .field input,.field textarea{ width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line); background:var(--card);font-family:inherit;font-size:14px;color:var(--ink);outline:none; }
+  .field textarea{resize:none;height:55px;font-size:12px;}
+  .field input:focus,.field textarea:focus{border-color:var(--rust);}
+  .field input[type=number]{font-family:"DM Mono",monospace;font-size:24px;font-weight:500;}
+  .tabs{display:flex;gap:4px;margin-bottom:14px;}
+  .tab{ padding:5px 13px;border-radius:99px;font-size:11px;cursor:pointer; background:transparent;border:1px solid transparent;color:var(--ink3);transition:background .2s,color .2s; }
+  .tab.on{background:var(--ink);color:#fff;}
+  .bill{ display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:14px; background:var(--card);border:1px solid var(--line);margin-bottom:5px; transition:transform .2s,box-shadow .2s;cursor:pointer; }
+  .bill:hover{transform:translateX(3px);box-shadow:2px 3px 10px rgba(0,0,0,.03);}
+  .bill-icon{font-size:20px;flex-shrink:0;}
+  .bill-mid{flex:1;min-width:0;}
+  .bill-cat{font-size:13px;font-weight:700;}
+  .bill-note{font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bill-right{text-align:right;}
+  .bill-amt{font-size:15px;font-family:"DM Mono",monospace;font-weight:500;}
+  .bill-date{font-size:10px;color:var(--ink3);}
+
+  .st-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .st-card{padding:16px;border-radius:14px;text-align:center;background:var(--card);border:1px solid var(--line);}
+  .st-val{font-size:26px;font-family:"DM Mono",monospace;font-weight:500;}
+  .st-lbl{font-size:9px;color:var(--ink3);letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
+  .bar-wrap{display:flex;align-items:flex-end;gap:3px;height:120px;padding-top:14px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .bar-fill{width:100%;border-radius:2px;background:var(--ink);transition:height .5s ease-out;min-height:1px;}
+  .bar-lbl{font-size:8px;color:var(--ink3);font-family:"DM Mono",monospace;}
+
+  .me-avatar{width:56px;height:56px;border-radius:50%;background:var(--rust);display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:6px;}
+  .me-row{ padding:13px 15px;border-radius:14px;background:var(--card);border:1px solid var(--line);margin-bottom:5px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:transform .2s; }
+  .me-row:hover{transform:translateX(3px);}
+
+  .nav{ position:absolute;bottom:0;inset-inline:0;padding:6px 16px calc(6px + env(safe-area-inset-bottom)); display:flex;justify-content:space-around;align-items:flex-end; background:rgba(245,240,232,.92);backdrop-filter:blur(20px);border-top:1px solid var(--line); }
+  .nav-item{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 10px;border-radius:12px;cursor:pointer;border:none;background:transparent;color:var(--ink3);font-family:inherit;font-size:10px;transition:color .2s;}
+  .nav-item.on{color:var(--rust);}
+  .nav-icon{font-size:22px;transition:transform .2s;}
+  .nav-item.on .nav-icon{transform:translateY(-2px);}
+  .nav-add{width:44px;height:44px;border-radius:50%;margin-bottom:3px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:none;box-shadow:0 5px 18px rgba(0,0,0,.2);transition:transform .2s;}
+  .nav-add:hover{transform:scale(1.08);}
+
+  .modal-bg2{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;}
+  .modal-bg2.on{display:flex;}
+  .modal2{background:var(--paper);border-radius:24px;padding:32px 24px;width:90%;max-width:370px;animation:pop .3s ease-out;}
+  @keyframes pop{from{opacity:0;transform:scale(.92);}}
+
+  .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:300;padding:9px 20px;border-radius:99px;background:var(--ink);color:#fff;font-size:12px;pointer-events:none;animation:toIn .3s,toOut .8s 1s forwards;}
+  @keyframes toIn{from{opacity:0;transform:translateX(-50%) translateY(-8px);}}
+  @keyframes toOut{to{opacity:0;transform:translateX(-50%) translateY(-8px);}}
+  .empty{text-align:center;padding:50px 20px;color:var(--ink3);}
+  .empty-icon{font-size:44px;opacity:.35;margin-bottom:8px;}
+  @media(max-width:420px){.app{border-radius:0;box-shadow:none;}body{padding:0;}}
+</style>
 </head>
 <body>
-    <div id="auth-overlay" style="display:none">
-        <div class="auth-card">
-            <div style="text-align:center;margin-bottom:20px">
-                <h3>AI 自动记账</h3>
-                <p style="font-size:13px;color:var(--text-secondary)">登录或注册新账号</p>
-            </div>
-            <div class="form-group">
-                <label>用户名</label>
-                <input type="text" id="auth-username" class="form-input" placeholder="输入用户名">
-            </div>
-            <div class="form-group">
-                <label>密码</label>
-                <input type="password" id="auth-password" class="form-input" placeholder="输入密码">
-            </div>
-            <div id="auth-error" style="color:#f44336;font-size:13px;margin-bottom:8px;display:none"></div>
-            <div class="btn-row">
-                <button id="btn-auth-login" class="btn btn-primary">登录</button>
-                <button id="btn-auth-register" class="btn btn-outline">注册</button>
-            </div>
-            <div style="text-align:center;margin-top:12px">
-                <button id="btn-auth-skip" class="btn btn-small" style="color:var(--text-hint);background:none;border:none">跳过，先试用</button>
-            </div>
-        </div>
+<div id="app" class="app">
+  <div class="header">
+    <div class="header-left">
+      <div>{{ usr ? usr.name : '访客' }}</div>
+      <h1>今天<span>花了多少</span>？</h1>
     </div>
+    <div class="header-date" id="headerDate"></div>
+  </div>
 
-    <div id="app" style="display:block">
-        <header id="app-header">
-            <h1 id="header-title">AI自动记账</h1>
-        </header>
+  <div class="summary" v-if="!isAdm">
+    <div><div class="s-label">本月结余</div><div class="s-val">¥{{ currentNetTotal }}</div></div>
+    <div class="s-trend" style="text-align:right;"><span style="display:block;opacity:.6;">收入 +{{ totalIncome }}</span><span style="display:block;opacity:.6;">支出 -{{ totalExpense }}</span></div>
+  </div>
 
-        <!-- 公告弹窗 -->
-        <div id="announcement-modal" class="modal hidden">
-            <div class="modal-overlay"></div>
-            <div class="modal-card">
-                <h3>📢 公告</h3>
-                <p id="announcement-text" style="line-height:1.8;margin-bottom:16px;white-space:pre-wrap"></p>
-                <button id="btn-close-announce" class="btn btn-primary btn-block">知道了</button>
-            </div>
-        </div>
-
-        <main id="app-main">
-
-            <!-- 记账页 -->
-            <section id="page-addBill" class="page active">
-                <!-- 模式切换 -->
-                <div class="mode-tabs">
-                    <button class="mode-tab active" data-mode="quick">快捷记账</button>
-                    <button class="mode-tab" data-mode="chat">AI 对话</button>
-                </div>
-
-                <!-- 快捷记账模式 -->
-                <div id="mode-quick">
-                    <div class="card">
-                        <label class="input-label">输入消费记录</label>
-                        <textarea id="bill-input" class="bill-textarea" placeholder="例如：今天午饭吃了38块&#10;昨天滴滴打车25元&#10;淘宝买了双袜子49.9" rows="3"></textarea>
-                        <button id="btn-parse" class="btn btn-primary btn-block">AI 智能解析</button>
-                        <button id="btn-manual" class="btn btn-outline btn-block" style="margin-top:8px">手动记账</button>
-                    </div>
-
-                    <div id="preview-card" class="card hidden">
-                        <h3 class="preview-title">解析结果确认</h3>
-                        <div class="form-group">
-                            <label>金额（元）</label>
-                            <input type="number" id="preview-amount" step="0.01" min="0" class="form-input">
-                        </div>
-                        <div class="form-group">
-                            <label>类别</label>
-                            <select id="preview-category" class="form-input"></select>
-                        </div>
-                        <div class="form-group">
-                            <label>描述</label>
-                            <input type="text" id="preview-desc" class="form-input">
-                        </div>
-                        <div class="form-group">
-                            <label>日期</label>
-                            <input type="date" id="preview-date" class="form-input">
-                        </div>
-                        <div class="form-group form-inline">
-                            <label>类型</label>
-                            <label class="switch-label">
-                                <span>支出</span>
-                                <input type="checkbox" id="preview-income">
-                                <span class="switch-track"></span>
-                                <span>收入</span>
-                            </label>
-                        </div>
-                        <div class="btn-row">
-                            <button id="btn-cancel" class="btn btn-outline">取消</button>
-                            <button id="btn-save" class="btn btn-primary">确认保存</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- AI 对话模式 -->
-                <div id="mode-chat" class="hidden">
-                    <div id="chat-messages" class="chat-messages">
-                        <div class="chat-msg chat-msg-ai">
-                            <div class="chat-bubble">嗨！我是你的记账小助手～跟我说说你今天花了什么吧 😄</div>
-                        </div>
-                    </div>
-                    <div class="chat-input-row">
-                        <input type="text" id="chat-input" class="chat-text-input" placeholder="说说你的消费...">
-                        <button id="btn-chat-send" class="btn btn-primary chat-send-btn">发送</button>
-                    </div>
-                    <button id="btn-chat-clear" class="btn btn-outline btn-block" style="margin-top:8px">清空对话</button>
-                </div>
-            </section>
-
-            <!-- 账单列表页 -->
-            <section id="page-billList" class="page">
-                <div class="filter-bar">
-                    <button id="filter-prev-month" class="btn-icon">&lt;</button>
-                    <span id="filter-month-label">本月</span>
-                    <button id="filter-next-month" class="btn-icon">&gt;</button>
-                    <span style="flex:1"></span>
-                    <button id="filter-reset" class="btn btn-small">全部</button>
-                </div>
-                <div id="bill-list" class="bill-list"></div>
-                <div id="load-more-wrap" class="hidden">
-                    <button id="btn-load-more" class="btn btn-outline btn-block">加载更多</button>
-                </div>
-                <div id="bill-list-empty" class="empty-state hidden">
-                    <div class="empty-icon">📝</div>
-                    <p>还没有账单记录</p>
-                </div>
-            </section>
-
-            <!-- 编辑弹窗 -->
-            <div id="edit-modal" class="modal hidden">
-                <div class="modal-overlay"></div>
-                <div class="modal-card">
-                    <h3>编辑账单</h3>
-                    <div class="form-group">
-                        <label>金额</label>
-                        <input type="number" id="edit-amount" step="0.01" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>类别</label>
-                        <select id="edit-category" class="form-input"></select>
-                    </div>
-                    <div class="form-group">
-                        <label>描述</label>
-                        <input type="text" id="edit-desc" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>日期</label>
-                        <input type="date" id="edit-date" class="form-input">
-                    </div>
-                    <div class="form-group form-inline">
-                        <label>类型</label>
-                        <label class="switch-label">
-                            <span>支出</span>
-                            <input type="checkbox" id="edit-income">
-                            <span class="switch-track"></span>
-                            <span>收入</span>
-                        </label>
-                    </div>
-                    <div class="btn-row">
-                        <button id="btn-edit-cancel" class="btn btn-outline">取消</button>
-                        <button id="btn-edit-save" class="btn btn-primary">保存修改</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 统计页 -->
-            <section id="page-stats" class="page">
-                <div class="period-selector">
-                    <button class="btn btn-small period-btn active" data-period="this_month">本月</button>
-                    <button class="btn btn-small period-btn" data-period="last_month">上月</button>
-                    <button class="btn btn-small period-btn" data-period="last_3months">近3月</button>
-                    <button class="btn btn-small period-btn" data-period="this_year">本年</button>
-                </div>
-                <div class="summary-cards">
-                    <div class="summary-card expense-card">
-                        <span class="summary-label">总支出</span>
-                        <span id="sum-expense" class="summary-value">¥0.00</span>
-                    </div>
-                    <div class="summary-card income-card">
-                        <span class="summary-label">总收入</span>
-                        <span id="sum-income" class="summary-value">¥0.00</span>
-                    </div>
-                </div>
-                <div class="chart-card card">
-                    <h3>支出分类</h3>
-                    <canvas id="pie-chart"></canvas>
-                </div>
-                <div class="chart-card card">
-                    <h3>每日支出</h3>
-                    <canvas id="bar-chart"></canvas>
-                </div>
-            </section>
-
-            <!-- 设置页 -->
-            <section id="page-settings" class="page">
-
-                <!-- 管理员登录 -->
-                <div class="card" id="admin-login-card">
-                    <h3>管理员登录</h3>
-                    <div style="display:flex;gap:8px">
-                        <input type="password" id="admin-password" class="form-input" placeholder="输入管理员密码" style="flex:1">
-                        <button id="btn-admin-login" class="btn btn-primary" style="flex-shrink:0">登录</button>
-                    </div>
-                    <div id="admin-login-result" style="margin-top:8px;font-size:13px"></div>
-                </div>
-
-                <!-- 管理员功能（登录后显示） -->
-                <div id="admin-section" class="hidden">
-                    <div class="card">
-                        <h3>用户管理</h3>
-                        <div style="display:flex;gap:8px;margin-bottom:10px">
-                            <input type="text" id="admin-new-username" class="form-input" placeholder="用户名" style="flex:1">
-                            <input type="password" id="admin-new-password" class="form-input" placeholder="密码" style="flex:1">
-                            <button id="btn-admin-create-user" class="btn btn-primary btn-small" style="flex-shrink:0">添加</button>
-                        </div>
-                        <div id="user-list" style="font-size:13px">
-                            <p style="color:var(--text-hint)">加载中...</p>
-                        </div>
-                        <button id="btn-refresh-users" class="btn btn-small btn-outline" style="margin-top:8px">刷新</button>
-                    </div>
-
-                    <div id="edit-user-modal" class="modal hidden">
-                        <div class="modal-overlay"></div>
-                        <div class="modal-card">
-                            <h3>修改密码</h3>
-                            <div class="form-group">
-                                <label>新密码</label>
-                                <input type="password" id="edit-user-password" class="form-input" placeholder="至少4位">
-                            </div>
-                            <div class="btn-row">
-                                <button id="btn-edit-user-cancel" class="btn btn-outline">取消</button>
-                                <button id="btn-edit-user-save" class="btn btn-primary">保存</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <h3>AI 接口配置</h3>
-                        <div class="form-group">
-                            <label>接口类型</label>
-                            <div class="radio-group">
-                                <label><input type="radio" name="setting-provider" value="openai" checked> OpenAI兼容</label>
-                                <label><input type="radio" name="setting-provider" value="ollama"> Ollama本地</label>
-                                <label><input type="radio" name="setting-provider" value="custom"> 自定义</label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>API 地址</label>
-                            <input type="text" id="setting-api-url" class="form-input" placeholder="https://api.openai.com">
-                        </div>
-                        <div class="form-group" id="group-api-path">
-                            <label>接口路径</label>
-                            <input type="text" id="setting-api-path" class="form-input" placeholder="/v1/chat/completions">
-                        </div>
-                        <div class="form-group" id="group-api-key">
-                            <label>API Key（可选） <span id="key-status" style="font-weight:400;color:var(--primary);display:none">(已设置)</span></label>
-                            <input type="password" id="setting-api-key" class="form-input" placeholder="sk-...">
-                        </div>
-                        <div class="form-group">
-                            <label>模型名称</label>
-                            <input type="text" id="setting-model" class="form-input" placeholder="gpt-3.5-turbo">
-                        </div>
-                        <div class="btn-row">
-                            <button id="btn-test-connection" class="btn btn-outline">测试连接</button>
-                            <button id="btn-save-settings" class="btn btn-primary">保存设置</button>
-                        </div>
-                        <div id="test-result" class="test-result hidden"></div>
-                    </div>
-
-                    <div class="card">
-                        <h3>公告管理</h3>
-                        <textarea id="setting-announcement" class="form-input" rows="3" placeholder="输入公告内容，留空则不显示公告&#10;用户打开软件时会自动弹出此公告"></textarea>
-                        <button id="btn-save-announcement" class="btn btn-primary btn-block" style="margin-top:8px">保存公告</button>
-                    </div>
-
-                    <div class="card">
-                        <h3>数据导出</h3>
-                        <div class="btn-row">
-                            <button id="btn-export-csv" class="btn btn-outline">导出 CSV</button>
-                            <button id="btn-export-json" class="btn btn-outline">导出 JSON</button>
-                        </div>
-                    </div>
-
-                    <div style="text-align:center;padding:8px">
-                        <button id="btn-admin-logout" class="btn btn-outline btn-small">退出管理</button>
-                    </div>
-                </div>
-
-                <div style="text-align:center;padding:8px">
-                    <button id="btn-user-logout" class="btn btn-outline btn-small">退出登录</button>
-                </div>
-
-                <div class="version-info">
-                    <p>AI 自动记账 v2.0</p>
-                </div>
-            </section>
-        </main>
-
-        <!-- 底部导航 -->
-        <nav id="bottom-nav">
-            <button class="nav-tab active" data-page="addBill">
-                <span class="tab-icon">✏</span>
-                <span class="tab-label">记账</span>
-            </button>
-            <button class="nav-tab" data-page="billList">
-                <span class="tab-icon">📋</span>
-                <span class="tab-label">账单</span>
-            </button>
-            <button class="nav-tab" data-page="stats">
-                <span class="tab-icon">📊</span>
-                <span class="tab-label">统计</span>
-            </button>
-            <button class="nav-tab" data-page="settings">
-                <span class="tab-icon">⚙</span>
-                <span class="tab-label">设置</span>
-            </button>
-        </nav>
-
-        <div id="toast" class="toast hidden"></div>
+  <!-- LOG -->
+  <div :class="['page',{on:pg==='log'}]" id="p-log">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0;">
+      <span style="font-size:12px;color:var(--ink3);letter-spacing:1px;">AI 对话</span>
+      <button @click="openDrawer" style="background:var(--card);border:1px solid var(--line);padding:5px 14px;border-radius:99px;font-size:11px;cursor:pointer;color:var(--ink2);font-family:inherit;">⌨️ 手动记账</button>
     </div>
+    <div class="chat-container">
+      <div v-for="m in chat" class="msg">
+        <div :class="m.role==='user'?'bubble-user':'bubble-ai'">
+          <template v-if="m.role==='ai'">
+            <div>{{m.text}}</div>
+            <div v-if="m.parsed?.length" v-for="(p,idx) in m.parsed" :key="idx" class="parsed-item">
+              <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:bold;">
+                <span>{{p.type==='expense'?'支出':'收入'}}: {{p.icon}} {{p.cat}} ¥{{p.amt}}</span>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:2px;">
+                <button type="button" class="confirm-btn" style="flex:1;" @click="confirmAi(p,m)">确认</button>
+                <button type="button" class="confirm-btn ghost" @click="p.type=p.type==='expense'?'income':'expense'">切换收支</button>
+              </div>
+            </div>
+          </template>
+          <template v-else>{{m.text}}</template>
+        </div>
+      </div>
+    </div>
+    <div class="input-row">
+      <input v-model="aiTxt" @keyup.enter="sendAi" @input="window.__scene3d?.type()" @blur="window.__scene3d?.stopType()" placeholder="午饭 35 元 / 工资 8000..." aria-label="AI 录入">
+      <button @click="sendAi" aria-label="发送">→</button>
+    </div>
+    <div style="padding:10px 14px;border-radius:12px;background:var(--card);border:1px solid var(--line);margin-top:8px;font-size:11px;color:var(--ink2);">💡 试试："午饭35，咖啡28" 或 "工资8000"</div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="/static/js/utils.js"></script>
-    <script src="/static/js/api.js"></script>
-    <script src="/static/js/pages/addBill.js"></script>
-    <script src="/static/js/pages/billList.js"></script>
-    <script src="/static/js/pages/stats.js"></script>
-    <script src="/static/js/pages/settings.js"></script>
-    <script src="/static/js/app.js"></script>
+  <!-- BILLS -->
+  <div :class="['page',{on:pg==='bills'}]" id="p-bills">
+    <div class="tabs">
+      <button v-for="f in filters" :class="['tab',{on:flt===f}]" @click="flt=f">{{f}}</button>
+    </div>
+    <div v-if="filtered.length">
+      <div v-for="b in filtered" class="bill">
+        <span class="bill-icon">{{b.icon||'📦'}}</span>
+        <div class="bill-mid"><div class="bill-cat">{{b.cat||b.category}}</div><div class="bill-note">{{b.note||b.raw_input||''}}</div></div>
+        <div class="bill-right"><div class="bill-amt" :style="{color:b.type==='income'?'var(--emerald)':'var(--rust)'}">{{b.type==='income'?'+':'-'}}¥{{b.amt||b.amount}}</div><div class="bill-date">{{(b.date||'').slice(5)}}</div></div>
+      </div>
+    </div>
+    <div v-else class="empty"><div class="empty-icon">📭</div>暂无记录</div>
+  </div>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/static/sw.js');
+  <!-- STATS -->
+  <div :class="['page',{on:pg==='stats'}]" id="p-stats">
+    <div style="text-align:center;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:16px;">
+      <button @click="pm" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink3);">←</button>
+      <span style="font-size:14px;font-weight:700;">{{sYm}}</span>
+      <button @click="nm" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink3);">→</button>
+    </div>
+    <div class="st-row">
+      <div class="st-card"><div class="st-val">¥{{sIn}}</div><div class="st-lbl">总收入</div></div>
+      <div class="st-card"><div class="st-val">¥{{sOut}}</div><div class="st-lbl">总支出</div></div>
+    </div>
+    <div class="bar-wrap" v-html="barHtml"></div>
+  </div>
+
+  <!-- ME -->
+  <div :class="['page',{on:pg==='me'}]" id="p-me">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div class="me-avatar">🐱</div>
+      <div style="font-weight:700;font-size:15px;">{{usr?.name||'未登录'}}</div>
+      <div style="font-size:10px;color:var(--ink3);font-family:'DM Mono',monospace;">{{usr?.id?.slice(0,8)}}</div>
+    </div>
+    <button v-if="!usr" style="width:100%;padding:13px;border-radius:14px;background:transparent;border:1.5px solid var(--line);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;color:var(--ink);margin-bottom:10px;" @click="showLogin=true">登录 / 注册</button>
+    <button v-if="usr" style="width:100%;padding:13px;border-radius:14px;background:transparent;border:1.5px solid var(--line);font-family:inherit;font-size:14px;cursor:pointer;color:var(--rust);margin-bottom:10px;" @click="doLogout">退出登录</button>
+    <button v-if="!isAdm" style="width:100%;padding:13px;border-radius:14px;background:var(--ink);color:#fff;border:none;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px;" @click="showAdmin=true">👑 管理员模式</button>
+    <button v-if="isAdm" style="width:100%;padding:13px;border-radius:14px;background:var(--rust);color:#fff;border:none;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px;" @click="exitAdmin">退出管理员</button>
+    <div class="me-row" @click="exportCSV"><span>📤 导出 CSV</span><span style="color:var(--ink3);">›</span></div>
+    <div class="me-row" v-if="isAdm" @click="go('admin')"><span>⚙️ 管理面板</span><span style="color:var(--ink3);">›</span></div>
+  </div>
+
+  <!-- ADMIN -->
+  <div :class="['page',{on:pg==='admin'}]" id="p-admin" v-if="isAdm">
+    <div class="adm-sec"><div class="adm-title">📢 公告</div><textarea v-model="announce" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;min-height:50px;font-family:inherit;font-size:12px;"></textarea><button style="margin-top:6px;padding:6px 16px;border-radius:99px;background:var(--ink);color:#fff;border:none;cursor:pointer;font-size:11px;" @click="saveAnnounce">发布</button></div>
+    <div class="adm-sec"><div class="adm-title">👥 用户管理</div>
+      <div class="adm-list-item" v-for="u in adminUsers"><span>{{u.username}} <span style="color:var(--ink3);font-size:10px;">ID:{{u.id}}</span></span><button class="confirm-btn" style="background:var(--rust);" @click="deleteUser(u.id)">删除</button></div>
+      <div style="display:flex;gap:6px;margin-top:8px;"><input v-model="newUser" placeholder="新用户名" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:12px;"><button style="padding:6px 14px;border-radius:99px;background:var(--ink);color:#fff;border:none;cursor:pointer;font-size:11px;" @click="addUser">添加</button></div>
+    </div>
+    <div class="adm-sec"><div class="adm-title">🤖 AI 配置</div>
+      <div class="field"><input v-model="aiConfig.url" placeholder="API 地址"></div>
+      <div class="field"><input v-model="aiConfig.key" placeholder="API Key" type="password"></div>
+      <div class="field"><input v-model="aiConfig.model" placeholder="模型名"></div>
+      <button style="padding:8px 20px;border-radius:99px;background:var(--ink);color:#fff;border:none;cursor:pointer;font-size:11px;" @click="saveAiConfig">保存</button>
+    </div>
+  </div>
+
+  <!-- Drawer -->
+  <div :class="['drawer-bg',{on:drawer}]" @click.self="drawer=false">
+    <div class="drawer"><div class="drawer-header"><span>⌨️ 手动记账</span><button @click="drawer=false" aria-label="关闭">×</button></div>
+      <div class="cats"><button type="button" v-for="c in cats" :class="['cat',{on:form.cat===c.k}]" @click="form.cat=c.k">{{c.icon}} {{c.k}}</button></div>
+      <div class="field"><input type="number" v-model="form.amt" placeholder="0.00" aria-label="金额"></div>
+      <div class="field"><input type="text" v-model="form.note" placeholder="备注" aria-label="备注"></div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button style="flex:1;padding:8px;border-radius:10px;border:1.5px solid var(--line);background:form.type==='expense'?'var(--rust)':'transparent';color:form.type==='expense'?'#fff':'var(--ink2)';cursor:pointer;font-family:inherit;font-size:12px;" @click="form.type='expense'">支出</button>
+        <button style="flex:1;padding:8px;border-radius:10px;border:1.5px solid var(--line);background:form.type==='income'?'var(--emerald)':'transparent';color:form.type==='income'?'#fff':'var(--ink2)';cursor:pointer;font-family:inherit;font-size:12px;" @click="form.type='income'">收入</button>
+      </div>
+      <button type="button" style="width:100%;padding:15px;border-radius:14px;background:var(--ink);color:#fff;border:none;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;" @click="saveBill">保存</button>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div :class="['modal-bg2',{on:showLogin}]" @click.self="showLogin=false">
+    <div class="modal2"><h3 style="text-align:center;font-size:20px;font-weight:900;margin-bottom:20px;">登录 / 注册</h3>
+      <div class="field"><input v-model="lU" placeholder="用户名" aria-label="用户名" autocomplete="username"></div>
+      <div class="field"><input type="password" v-model="lP" placeholder="密码" aria-label="密码" autocomplete="current-password"></div>
+      <button style="width:100%;padding:15px;border-radius:14px;background:var(--ink);color:#fff;border:none;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;" @click="doLogin">登录</button>
+      <button style="width:100%;padding:15px;border-radius:14px;background:transparent;border:1.5px solid var(--line);font-family:inherit;font-size:14px;cursor:pointer;color:var(--ink);margin-bottom:8px;" @click="doRegister">注册</button>
+      <button style="width:100%;background:transparent;border:none;color:var(--ink3);font-family:inherit;cursor:pointer;" @click="showLogin=false">取消</button>
+    </div>
+  </div>
+
+  <!-- Admin Modal -->
+  <div :class="['modal-bg2',{on:showAdmin}]" @click.self="showAdmin=false">
+    <div class="modal2"><h3 style="text-align:center;font-size:20px;font-weight:900;margin-bottom:20px;">管理员验证</h3>
+      <div class="field"><input type="password" v-model="adminPw" placeholder="管理员密码" aria-label="管理员密码"></div>
+      <button style="width:100%;padding:15px;border-radius:14px;background:var(--ink);color:#fff;border:none;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;" @click="verifyAdmin">验证</button>
+      <button style="width:100%;background:transparent;border:none;color:var(--ink3);font-family:inherit;cursor:pointer;" @click="showAdmin=false">取消</button>
+    </div>
+  </div>
+
+  <nav class="nav" aria-label="主导航">
+    <button v-for="t in tabs" :class="['nav-item',{on:pg===t.k}]" @click="go(t.k)" :aria-label="t.label" :aria-current="pg===t.k?'page':undefined">
+      <span class="nav-icon" aria-hidden="true">{{t.icon}}</span>{{t.label}}
+    </button>
+    <button class="nav-add" type="button" @click="go('log');openDrawer()" aria-label="快捷记一笔">+</button>
+  </nav>
+</div>
+
+<script type="module" src="/static/scene3d.js"></script>
+<script>
+const {createApp,ref,computed,reactive} = Vue;
+const API = (path, opts = {}) => {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = localStorage.getItem('jz_token');
+  if (token) headers['X-Auth-Token'] = token;
+  return fetch(path, { headers, ...opts }).then(r => r.json()).catch(e => ({ error: e.message }));
+};
+
+createApp({
+  setup() {
+    const pg = ref('log'), drawer = ref(false), showLogin = ref(false), showAdmin = ref(false);
+    const flt = ref('全部'), sy = ref(new Date().getFullYear()), sm = ref(new Date().getMonth() + 1);
+    const aiTxt = ref(''), chat = ref([{ role: 'ai', text: '你好！告诉我花了或赚了多少，我帮你记账。', parsed: [] }]);
+    const form = reactive({ cat: '餐饮', amt: '', note: '', type: 'expense' });
+    const lU = ref(''), lP = ref(''), adminPw = ref('');
+    const usr = ref(JSON.parse(localStorage.getItem('jz_usr') || 'null'));
+    const isAdm = ref(!!localStorage.getItem('jz_adm'));
+    const bills = ref([]), adminUsers = ref([]), announce = ref('');
+    const aiConfig = reactive({ url: '', key: '', model: '' });
+    const newUser = ref('');
+
+    const cats = [{ k: '餐饮', icon: '🍜' }, { k: '交通', icon: '🚗' }, { k: '购物', icon: '🛍' }, { k: '娱乐', icon: '🎮' }, { k: '住房', icon: '🏠' }, { k: '医疗', icon: '💊' }, { k: '教育', icon: '📚' }, { k: '通讯', icon: '📱' }, { k: '日用', icon: '🧴' }, { k: '其他', icon: '📦' }];
+    const tabs = [{ k: 'log', label: 'AI', icon: '✨' }, { k: 'bills', label: '明细', icon: '📋' }, { k: 'stats', label: '分析', icon: '📊' }, { k: 'me', label: '设置', icon: '👤' }];
+    const filters = ['全部', '今天', '本周', '本月'];
+
+    const go = k => { pg.value = k; window.__scene3d?.go(k); };
+    const openDrawer = () => { drawer.value = true; };
+
+    const loadBills = async () => {
+      const data = await API('/api/bills?per_page=500');
+      if (data.bills) bills.value = data.bills.map(b => ({ ...b, icon: cats.find(c => c.k === b.category)?.icon || '📦', cat: b.category, amt: b.amount, type: 'expense' }));
+    };
+    const loadAnnounce = async () => {
+      const data = await API('/api/announcement');
+      if (data.text) announce.value = data.text;
+    };
+    const loadAiSettings = async () => {
+      const data = await API('/api/settings');
+      if (data.settings) {
+        const s = data.settings;
+        aiConfig.url = s.api_url || '';
+        aiConfig.key = s.api_key || '';
+        aiConfig.model = s.model || '';
+      }
+    };
+    const loadAdminUsers = async () => {
+      if (!isAdm.value) return;
+      const data = await API('/api/admin/users');
+      if (data.users) adminUsers.value = data.users;
+    };
+
+    const filtered = computed(() => {
+      let a = bills.value; const n = new Date(), td = n.toISOString().slice(0, 10);
+      if (flt.value === '今天') a = a.filter(b => b.date?.startsWith(td));
+      else if (flt.value === '本周') { const w = new Date(n); w.setDate(n.getDate() - n.getDay()); a = a.filter(b => b.date >= w.toISOString().slice(0, 10)); }
+      else if (flt.value === '本月') a = a.filter(b => b.date?.startsWith(td.slice(0, 7)));
+      return a;
+    });
+    const totalIncome = computed(() => bills.value.filter(b => b.type === 'income').reduce((s, b) => s + parseFloat(b.amt || b.amount || 0), 0).toFixed(0));
+    const totalExpense = computed(() => bills.value.filter(b => b.type === 'expense').reduce((s, b) => s + parseFloat(b.amt || b.amount || 0), 0).toFixed(0));
+    const currentNetTotal = computed(() => (totalIncome.value - totalExpense.value).toFixed(0));
+
+    const saveBill = async () => {
+      const a = parseFloat(form.amt); if (!a || a <= 0) return toast('请输入金额');
+      const body = JSON.stringify({ amount: a, category: form.cat, note: form.note || form.cat, date: new Date().toISOString().slice(0, 10) });
+      const res = await API('/api/bills', { method: 'POST', body });
+      if (!res.error) { form.amt = ''; form.note = ''; drawer.value = false; loadBills(); toast('✓ 已记录'); }
+      else toast(res.error);
+    };
+
+    const sendAi = async () => {
+      const t = aiTxt.value.trim(); if (!t) return;
+      chat.value.push({ role: 'user', text: t, id: Date.now() });
+      aiTxt.value = '';
+      window.__scene3d?.stopType();
+      try {
+        const res = await API('/api/chat', { method: 'POST', body: JSON.stringify({ text: t }) });
+        if (res.result) {
+          chat.value.push({ role: 'ai', text: res.result, parsed: (res.bills || []).map(b => ({ icon: cats.find(c => c.k === b.category)?.icon || '📦', cat: b.category, amt: b.amount, type: 'expense', note: b.note })), id: Date.now() + 1 });
+        } else {
+          chat.value.push({ role: 'ai', text: res.error || '解析失败', parsed: [], id: Date.now() + 1 });
         }
-    </script>
+      } catch (e) {
+        // local fallback
+        const m = t.match(/(\d+(\.\d+)?)/); const amt = m ? parseFloat(m[0]) : null;
+        const cc = cats.find(c => t.includes(c.k)); const ck = cc ? cc.k : '其他', icon = cc ? cc.icon : '📦';
+        const isInc = /工资|收入|赚|报销|收/.test(t);
+        if (amt) chat.value.push({ role: 'ai', text: '本地解析：', parsed: [{ icon, cat: ck, amt: amt.toFixed(2), type: isInc ? 'income' : 'expense' }], id: Date.now() + 1 });
+        else chat.value.push({ role: 'ai', text: '未识别金额', parsed: [], id: Date.now() + 1 });
+      }
+    };
+
+    const confirmAi = async (p, m) => {
+      await API('/api/bills', { method: 'POST', body: JSON.stringify({ amount: parseFloat(p.amt), category: p.cat, note: p.note || 'AI录入', date: new Date().toISOString().slice(0, 10) }) });
+      m.parsed = []; loadBills(); toast('✓ 已确认');
+    };
+
+    const sy_m = computed(() => `${sy.value}-${String(sm.value).padStart(2, '0')}`);
+    const sYm = computed(() => `${sy.value}年${sm.value}月`);
+    const sIn = ref('0'), sOut = ref('0'), barHtml = ref('');
+    const loadStats = async () => {
+      const data = await API(`/api/stats?month=${sy_m.value}`);
+      sIn.value = (data.total_income || 0).toFixed(0);
+      sOut.value = (data.total_expense || 0).toFixed(0);
+      if (data.daily) { const max = Math.max(...data.daily.map(d => d.amount), 1); barHtml.value = data.daily.map(d => `<div class="bar-col"><div class="bar-fill" style="height:${(d.amount / max * 100).toFixed(0)}%"></div><div class="bar-lbl">${d.date.slice(-2)}</div></div>`).join(''); }
+    };
+    const pm = () => { if (sm.value === 1) { sm.value = 12; sy.value--; } else sm.value--; loadStats(); };
+    const nm = () => { if (sm.value === 12) { sm.value = 1; sy.value++; } else sm.value++; loadStats(); };
+
+    const doLogin = async () => {
+      const u = lU.value.trim(), p = lP.value.trim();
+      if (!u || !p) return toast('请填写用户名和密码');
+      const data = await API('/api/auth/login', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
+      if (data.token) { localStorage.setItem('jz_token', data.token); usr.value = { name: u, id: data.token.slice(0, 8) }; localStorage.setItem('jz_usr', JSON.stringify(usr.value)); showLogin.value = false; lU.value = ''; lP.value = ''; loadBills(); toast('👋 欢迎，' + u); }
+      else toast(data.error || '登录失败');
+    };
+    const doRegister = async () => {
+      const u = lU.value.trim(), p = lP.value.trim();
+      if (!u || !p || p.length < 4) return toast('密码至少 4 位');
+      const data = await API('/api/auth/register', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
+      if (data.token) { localStorage.setItem('jz_token', data.token); usr.value = { name: u, id: data.token.slice(0, 8) }; localStorage.setItem('jz_usr', JSON.stringify(usr.value)); showLogin.value = false; lU.value = ''; lP.value = ''; loadBills(); toast('🎉 注册成功，' + u); }
+      else toast(data.error || '注册失败');
+    };
+    const doLogout = () => { localStorage.removeItem('jz_token'); localStorage.removeItem('jz_usr'); usr.value = null; isAdm.value = false; localStorage.removeItem('jz_adm'); bills.value = []; toast('已退出'); };
+
+    const verifyAdmin = async () => {
+      const data = await API('/api/admin/login', { method: 'POST', body: JSON.stringify({ password: adminPw.value }) });
+      if (data.success) { isAdm.value = true; localStorage.setItem('jz_adm', '1'); showAdmin.value = false; adminPw.value = ''; loadAdminUsers(); loadAiSettings(); toast('👑 管理员验证通过'); }
+      else toast('❌ 密码错误');
+    };
+    const exitAdmin = () => { isAdm.value = false; localStorage.removeItem('jz_adm'); go('me'); };
+    const saveAnnounce = async () => { await API('/api/settings', { method: 'PUT', body: JSON.stringify({ announcement: announce.value }) }); toast('📢 已发布'); };
+    const addUser = async () => { if (!newUser.value.trim()) return; await API('/api/admin/users', { method: 'POST', body: JSON.stringify({ username: newUser.value.trim(), password: 'pass1234' }) }); newUser.value = ''; loadAdminUsers(); toast('✓ 已添加'); };
+    const deleteUser = async (id) => { await API(`/api/admin/users/${id}`, { method: 'DELETE' }); loadAdminUsers(); toast('🗑 已删除'); };
+    const saveAiConfig = async () => { await API('/api/settings', { method: 'PUT', body: JSON.stringify({ api_url: aiConfig.url, api_key: aiConfig.key, model: aiConfig.model }) }); toast('✓ AI 配置已保存'); };
+    const exportCSV = async () => { const a = document.createElement('a'); a.href = '/api/export'; a.download = 'bills.csv'; a.click(); };
+
+    const toast = m => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); };
+
+    loadBills(); loadAnnounce(); loadAiSettings(); loadAdminUsers(); loadStats();
+    document.getElementById('headerDate').textContent = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
+
+    return { pg, drawer, showLogin, showAdmin, flt, sy, sm, aiTxt, chat, form, lU, lP, adminPw, usr, isAdm, bills, adminUsers, announce, aiConfig, newUser, cats, tabs, filters, totalIncome, totalExpense, currentNetTotal, filtered, sYm, sIn, sOut, barHtml, go, openDrawer, saveBill, sendAi, confirmAi, pm, nm, doLogin, doRegister, doLogout, verifyAdmin, exitAdmin, saveAnnounce, addUser, deleteUser, saveAiConfig, exportCSV, loadBills };
+  }
+}).mount('#app');
+</script>
 </body>
 </html>
