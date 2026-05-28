@@ -264,6 +264,12 @@ const API = (path, opts = {}) => {
   const headers = { 'Content-Type': 'application/json' };
   const token = localStorage.getItem('jz_token');
   if (token) headers['X-Auth-Token'] = token;
+  // 访客模式：没有 token 时用 X-User-Id
+  if (!token) {
+    let uid = localStorage.getItem('jz_uid');
+    if (!uid) { uid = 'guest_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); localStorage.setItem('jz_uid', uid); }
+    headers['X-User-Id'] = uid;
+  }
   return fetch(path, { headers, ...opts }).then(r => r.json()).catch(e => ({ error: e.message }));
 };
 
