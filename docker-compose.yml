@@ -1,0 +1,31 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jizhang
+    ports:
+      - "5000:5000"
+    volumes:
+      # 开发时挂载代码，改代码即时生效（不需要 rebuild）
+      - ./run.py:/app/run.py:ro
+      - ./models.py:/app/models.py:ro
+      - ./ai_parser.py:/app/ai_parser.py:ro
+      - ./crypto_utils.py:/app/crypto_utils.py:ro
+      - ./templates:/app/templates:ro
+      - ./static:/app/static:ro
+      # 数据持久化
+      - jizhang_data:/app/data
+    environment:
+      - JIZHANG_TOKEN=${JIZHANG_TOKEN:-dev-token-placeholder}
+      - JIZHANG_ADMIN_PW=${JIZHANG_ADMIN_PW:-dev-admin-placeholder}
+    restart: unless-stopped
+    # 安全限制
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  jizhang_data:

@@ -1,0 +1,17 @@
+.git
+.gitignore
+.gitkeep
+android
+__pycache__
+*.pyc
+.env
+.claude
+.claude/commands
+.claude/skills
+*.md
+data/bookkeeping.db
+data/.secret_key
+data/.encryption_key
+docker-compose.yml
+Dockerfile
+.dockerignore
