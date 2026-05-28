@@ -39,18 +39,25 @@ def _get_uid():
 
 @app.before_request
 def check_token():
+    # 静态资源、页面、认证接口始终放行（SPA 要先加载才能显示登录页）
     if request.path.startswith("/static"):
         return None
     if request.path.startswith("/api/auth/"):
         return None
     if request.path == "/api/debug":
         return None
+    if request.path == "/" or request.path.endswith(".html"):
+        return None
+    # 已登录 session / URL token 一次性激活 / 已有 uid
     if session.get("ok"):
         return None
     if request.args.get("token") == SECRET_TOKEN:
         session["ok"] = True
         return None
     if _get_uid():
+        return None
+    # 首页本身不拦截，只拦截 API
+    if not request.path.startswith("/api"):
         return None
     return jsonify({"error": "需要有效的访问令牌"}), 403
 
