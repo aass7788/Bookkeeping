@@ -222,8 +222,27 @@
 
 <script>
 const {createApp,ref,computed,reactive,nextTick}=Vue;
-let GUEST_ID=localStorage.getItem('_uid');if(!GUEST_ID){GUEST_ID='u_'+Date.now().toString(36);localStorage.setItem('_uid',GUEST_ID);}
-const API=(p,o={})=>{const h={'Content-Type':'application/json','X-Auth-Token':localStorage.getItem('_token')||'','X-User-Id':GUEST_ID};const opt={headers:h,...o};return fetch(p,opt).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'HTTP '+r.status);return d;}).catch(e=>({error:e.message}));};
+// 旧前端已验证的 API 模块
+function getUserId(){let id=localStorage.getItem('_uid');if(!id){id='u_'+Date.now().toString(36);localStorage.setItem('_uid',id);}return id;}
+const USER_ID=getUserId();
+const Auth={token(){return localStorage.getItem('_token')||'';},username(){return localStorage.getItem('_user')||'';}};
+const api={async _fetch(url,options={}){try{const res=await fetch(url,{headers:{"Content-Type":"application/json","X-Auth-Token":Auth.token(),"X-User-Id":USER_ID,...options.headers},...options});const data=await res.json();if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);return data;}catch(e){if(!navigator.onLine)console.warn('离线');throw e;}},
+  getBills(p){return this._fetch('/api/bills?'+new URLSearchParams(p).toString());},
+  createBill(d){return this._fetch('/api/bills',{method:'POST',body:JSON.stringify(d)});},
+  deleteBill(id){return this._fetch('/api/bills/'+id,{method:'DELETE'});},
+  chat(t){return this._fetch('/api/chat',{method:'POST',body:JSON.stringify({text:t})});},
+  getStats(p){return this._fetch('/api/stats?'+new URLSearchParams(p).toString());},
+  getSettings(){return this._fetch('/api/settings');},
+  saveSettings(d){return this._fetch('/api/settings',{method:'PUT',body:JSON.stringify(d)});},
+  testConnection(){return this._fetch('/api/settings/test',{method:'POST'});},
+  announce(){return this._fetch('/api/announcement');},
+  login(u,pw){return this._fetch('/api/auth/login',{method:'POST',body:JSON.stringify({username:u,password:pw})});},
+  register(u,pw){return this._fetch('/api/auth/register',{method:'POST',body:JSON.stringify({username:u,password:pw})});},
+  adminLogin(pw){return this._fetch('/api/admin/login',{method:'POST',body:JSON.stringify({password:pw})});},
+  adminUsers(){return this._fetch('/api/admin/users');},
+  adminAddUser(u){return this._fetch('/api/admin/users',{method:'POST',body:JSON.stringify({username:u,password:'pass1234'})});},
+  adminDelUser(id){return this._fetch('/api/admin/users/'+id,{method:'DELETE'});},
+};
 
 createApp({setup(){
   const pg=ref('log'),drawer=ref(false),showLogin=ref(false),showAdmin=ref(false),flt=ref('全部');
@@ -241,11 +260,11 @@ createApp({setup(){
   const go=k=>{pg.value=k;if(k==='log')nextTick(()=>{if(chatScroll.value)chatScroll.value.scrollTop=chatScroll.value.scrollHeight;});};
   const openDrawer=()=>{form.amt='';form.note='';form.type='expense';drawer.value=true;};
 
-  const loadBills=async()=>{const d=await API('/api/bills?per_page=500');if(d.bills)bills.value=d.bills.map(b=>({...b,icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:b.is_income?'income':'expense',note:b.raw_input||b.description||''}));};
-  const loadAnnounce=async()=>{const d=await API('/api/announcement');if(d.text)announce.value=d.text;};
-  const loadAi=async()=>{const d=await API('/api/settings');if(d.api_url!==undefined){aiConf.url=d.api_url||'';aiConf.key=d.has_key?'••••••••••••••••':'';aiConf.model=d.model||'';aiConf.provider=d.api_provider||'openai';aiConf.path=d.api_path||'/v1/chat/completions';}};
-  const loadAdmin=async()=>{if(!isAdm.value)return;const d=await API('/api/admin/users');if(d.users)adminUsers.value=d.users;};
-  const loadStats=async()=>{const d=await API('/api/stats');sIn.value=(d.total_income||0).toFixed(0);sOut.value=(d.total_expense||0).toFixed(0);if(d.daily){const mx=Math.max(...d.daily.map(x=>x.amount),1);barHtml.value=d.daily.map(x=>`<div class="bar-col"><div class="bar-fill" style="height:${(x.amount/mx*100).toFixed(0)}%"></div><div class="bar-lbl">${x.date.slice(-2)}</div></div>`).join('');}};
+  const loadBills=async()=>{const d=await api.getBills({per_page:500});if(d.bills)bills.value=d.bills.map(b=>({...b,icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:b.is_income?'income':'expense',note:b.raw_input||b.description||''}));};
+  const loadAnnounce=async()=>{const d=await api.announce();if(d.text)announce.value=d.text;};
+  const loadAi=async()=>{const d=await api.getSettings();if(d.api_url!==undefined){aiConf.url=d.api_url||'';aiConf.key=d.has_key?'••••••••••••••••':'';aiConf.model=d.model||'';aiConf.provider=d.api_provider||'openai';aiConf.path=d.api_path||'/v1/chat/completions';}};
+  const loadAdmin=async()=>{if(!isAdm.value)return;const d=await api.adminUsers();if(d.users)adminUsers.value=d.users;};
+  const loadStats=async()=>{const d=await api.getStats();sIn.value=(d.total_income||0).toFixed(0);sOut.value=(d.total_expense||0).toFixed(0);if(d.daily){const mx=Math.max(...d.daily.map(x=>x.amount),1);barHtml.value=d.daily.map(x=>`<div class="bar-col"><div class="bar-fill" style="height:${(x.amount/mx*100).toFixed(0)}%"></div><div class="bar-lbl">${x.date.slice(-2)}</div></div>`).join('');}};
 
   const filtered=computed(()=>{let a=bills.value;const n=new Date(),td=n.toISOString().slice(0,10);if(flt.value==='今天')a=a.filter(b=>b.date?.startsWith(td));else if(flt.value==='本周'){const w=new Date(n);w.setDate(n.getDate()-n.getDay());a=a.filter(b=>b.date>=w.toISOString().slice(0,10));}else if(flt.value==='本月')a=a.filter(b=>b.date?.startsWith(td.slice(0,7)));return a;});
   const totalIncome=computed(()=>bills.value.filter(b=>(b.type||'exp')==='income').reduce((s,b)=>s+parseFloat(b.amt||b.amount||0),0).toFixed(0));
@@ -253,21 +272,21 @@ createApp({setup(){
   const currentNetTotal=computed(()=>{const i=parseFloat(totalIncome.value)||0,e=parseFloat(totalExpense.value)||0;return (i-e).toLocaleString('zh-CN');});
   const sYm=computed(()=>`${new Date().getFullYear()}年${new Date().getMonth()+1}月`);
 
-  const saveBill=async()=>{const a=parseFloat(form.amt);if(!a||a<=0)return toast('请输入金额');const b=JSON.stringify({amount:a,category:form.cat,description:form.note||form.cat,bill_date:new Date().toISOString().slice(0,10),is_income:form.type==='income'?1:0});const r=await API('/api/bills',{method:'POST',body:b});if(!r.error){form.amt='';form.note='';drawer.value=false;loadBills();toast('✓ 已记录');}else toast(r.error);};
+  const saveBill=async()=>{const a=parseFloat(form.amt);if(!a||a<=0)return toast('请输入金额');const b=JSON.stringify({amount:a,category:form.cat,description:form.note||form.cat,bill_date:new Date().toISOString().slice(0,10),is_income:form.type==='income'?1:0});const r=await api.createBill(JSON.parse(b));if(!r.error){form.amt='';form.note='';drawer.value=false;loadBills();toast('✓ 已记录');}else toast(r.error);};
 
-  const sendAi=async()=>{const t=aiTxt.value.trim();if(!t)return;chat.value.push({role:'user',text:t,id:Date.now()});aiTxt.value='';try{const r=await API('/api/chat',{method:'POST',body:JSON.stringify({text:t})});if(r.result){chat.value.push({role:'ai',text:r.result,parsed:(r.bills||[]).map(b=>({icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:'expense',note:b.note})),id:Date.now()+1});}else{const msg=r.error||('HTTP '+r.status||'解析失败');if(msg.includes('配置AI接口'))chat.value.push({role:'ai',text:'⚠️ AI 未配置 — 请管理员在设置→管理员模式→AI接口配置中填写 API 地址和 Key',parsed:[],id:Date.now()+1});else chat.value.push({role:'ai',text:'服务端错误: '+msg,parsed:[],id:Date.now()+1});}}catch(e){chat.value.push({role:'ai',text:'网络不可达，请确认服务在线',parsed:[],id:Date.now()+1});}nextTick(()=>{if(chatScroll.value)chatScroll.value.scrollTop=chatScroll.value.scrollHeight;});};
-  const confirmAi=async(p,m)=>{await API('/api/bills',{method:'POST',body:JSON.stringify({amount:parseFloat(p.amt),category:p.cat,description:p.note||'AI录入',bill_date:new Date().toISOString().slice(0,10),is_income:p.type==='income'?1:0})});m.parsed=[];loadBills();toast('✓ 已确认');};
+  const sendAi=async()=>{const t=aiTxt.value.trim();if(!t)return;chat.value.push({role:'user',text:t,id:Date.now()});aiTxt.value='';try{const r=await api.chat(t);if(r.result){chat.value.push({role:'ai',text:r.result,parsed:(r.bills||[]).map(b=>({icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:'expense',note:b.note})),id:Date.now()+1});}else{const msg=r.error||('HTTP '+r.status||'解析失败');if(msg.includes('配置AI接口'))chat.value.push({role:'ai',text:'⚠️ AI 未配置 — 请管理员在设置→管理员模式→AI接口配置中填写 API 地址和 Key',parsed:[],id:Date.now()+1});else chat.value.push({role:'ai',text:'服务端错误: '+msg,parsed:[],id:Date.now()+1});}}catch(e){chat.value.push({role:'ai',text:'网络不可达，请确认服务在线',parsed:[],id:Date.now()+1});}nextTick(()=>{if(chatScroll.value)chatScroll.value.scrollTop=chatScroll.value.scrollHeight;});};
+  const confirmAi=async(p,m)=>{await api.createBill({amount:parseFloat(p.amt),category:p.cat,description:p.note||'AI录入',bill_date:new Date().toISOString().slice(0,10),is_income:p.type==='income'?1:0});m.parsed=[];loadBills();toast('✓ 已确认');};
 
-  const doLogin=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p)return toast('请填写完整');const d=await API('/api/auth/login',{method:'POST',body:JSON.stringify({username:u,password:p})});if(d.token){localStorage.setItem('_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('_user',u);showLogin.value=false;lU.value='';lP.value='';loadBills();toast('👋 '+u);}else toast(d.error||'登录失败');};
-  const doRegister=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p||p.length<4)return toast('密码至少4位');const d=await API('/api/auth/register',{method:'POST',body:JSON.stringify({username:u,password:p})});if(d.token){localStorage.setItem('_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('_user',u);showLogin.value=false;lU.value='';lP.value='';loadBills();toast('🎉 '+u);}else toast(d.error||'注册失败');};
+  const doLogin=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p)return toast('请填写完整');const d=await api.login(u,p);if(d.token){localStorage.setItem('_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('_user',u);showLogin.value=false;lU.value='';lP.value='';loadBills();toast('👋 '+u);}else toast(d.error||'登录失败');};
+  const doRegister=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p||p.length<4)return toast('密码至少4位');const d=await api.register(u,p);if(d.token){localStorage.setItem('_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('_user',u);showLogin.value=false;lU.value='';lP.value='';loadBills();toast('🎉 '+u);}else toast(d.error||'注册失败');};
   const doLogout=()=>{localStorage.removeItem('_token');localStorage.removeItem('_user');usr.value=null;isAdm.value=false;localStorage.removeItem('jz_adm');bills.value=[];toast('已退出');};
-  const verifyAdmin=async()=>{const d=await API('/api/admin/login',{method:'POST',body:JSON.stringify({password:adminPw.value})});if(d.success){isAdm.value=true;localStorage.setItem('jz_adm','1');showAdmin.value=false;adminPw.value='';loadAdmin();loadAi();toast('👑 管理员');}else toast('❌ 密码错误');};
+  const verifyAdmin=async()=>{const d=await api.adminLogin(adminPw.value);if(d.success){isAdm.value=true;localStorage.setItem('jz_adm','1');showAdmin.value=false;adminPw.value='';loadAdmin();loadAi();toast('👑 管理员');}else toast('❌ 密码错误');};
   const exitAdmin=()=>{isAdm.value=false;localStorage.removeItem('jz_adm');go('me');};
-  const saveAnnounce=async()=>{await API('/api/settings',{method:'PUT',body:JSON.stringify({announcement:announce.value})});toast('📢 已发布');};
-  const saveAiConf=async()=>{const payload={api_url:aiConf.url,model:aiConf.model,api_provider:aiConf.provider,api_path:aiConf.path};if(aiConf.key&&!aiConf.key.startsWith('••'))payload.api_key=aiConf.key;await API('/api/settings',{method:'PUT',body:JSON.stringify(payload)});toast('✓ 已保存');};
-  const testAi=async()=>{const d=await API('/api/settings/test',{method:'POST'});toast(d.success?'✅ '+d.message:'❌ '+d.message);};
-  const addUser=async()=>{if(!newUser.value.trim())return;await API('/api/admin/users',{method:'POST',body:JSON.stringify({username:newUser.value.trim(),password:'pass1234'})});newUser.value='';loadAdmin();toast('✓ 已添加');};
-  const deleteUser=async(id)=>{await API(`/api/admin/users/${id}`,{method:'DELETE'});loadAdmin();toast('🗑 已删除');};
+  const saveAnnounce=async()=>{await api.saveSettings({announcement:announce.value});toast('📢 已发布');};
+  const saveAiConf=async()=>{const payload={api_url:aiConf.url,model:aiConf.model,api_provider:aiConf.provider,api_path:aiConf.path};if(aiConf.key&&!aiConf.key.startsWith('••'))payload.api_key=aiConf.key;await api.saveSettings(payload);toast('✓ 已保存');};
+  const testAi=async()=>{const d=await api.testConnection();toast(d.success?'✅ '+d.message:'❌ '+d.message);};
+  const addUser=async()=>{if(!newUser.value.trim())return;await api.adminAddUser(newUser.value.trim());newUser.value='';loadAdmin();toast('✓ 已添加');};
+  const deleteUser=async(id)=>{await api.adminDelUser(id);loadAdmin();toast('🗑 已删除');};
   const exportCSV=()=>{const a=document.createElement('a');a.href='/api/export';a.download='bills.csv';a.click();};
 
   const toast=m=>{const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);};
