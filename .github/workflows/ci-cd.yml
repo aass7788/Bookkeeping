@@ -6,9 +6,12 @@ on:
   push:
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # ═══════════════════════════════════════
-  # PR & push 都会跑的测试
+  # PR & push 都跑的测试
   # ═══════════════════════════════════════
   test:
     runs-on: ubuntu-latest
@@ -32,6 +35,8 @@ jobs:
     if: github.event_name == 'push'
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
