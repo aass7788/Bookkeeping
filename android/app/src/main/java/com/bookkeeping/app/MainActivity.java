@@ -8,7 +8,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
     private static final String SERVER_URL =
-        "http://121.43.238.163:5000/?token=B8xK9mP2vR6wN3jH5qL7aS4dF1gT6yU9";
+        "https://jz.dets.top";
 
     private WebView webView;
 

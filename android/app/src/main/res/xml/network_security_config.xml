@@ -4,4 +4,9 @@
         <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">localhost</domain>
     </domain-config>
+    <!-- 新服务器域名 -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">jz.dets.top</domain>
+        <domain includeSubdomains="true">dets.top</domain>
+    </domain-config>
 </network-security-config>
