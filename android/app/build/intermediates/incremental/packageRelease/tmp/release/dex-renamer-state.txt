@@ -1,0 +1,4 @@
+#Tue May 26 12:09:38 CST 2026
+base.0=D\:\\py\\jizhang\\android\\app\\build\\intermediates\\dex\\release\\mergeDexRelease\\classes.dex
+path.0=classes.dex
+renamed.0=classes.dex

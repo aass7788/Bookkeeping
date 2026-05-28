@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <title>AI自动记账</title>
+</head>
+<body>
+    <div id="app">
+        <header id="app-header">
+            <h1 id="header-title">AI自动记账</h1>
+        </header>
+
+        <main id="app-main">
+
+            <!-- 记账页 -->
+            <section id="page-addBill" class="page active">
+                <!-- 模式切换 -->
+                <div class="mode-tabs">
+                    <button class="mode-tab active" data-mode="quick">快捷记账</button>
+                    <button class="mode-tab" data-mode="chat">AI 对话</button>
+                </div>
+
+                <!-- 快捷记账模式 -->
+                <div id="mode-quick">
+                    <div class="card">
+                        <label class="input-label">输入消费记录</label>
+                        <textarea id="bill-input" class="bill-textarea" placeholder="例如：今天午饭吃了38块&#10;昨天滴滴打车25元&#10;淘宝买了双袜子49.9" rows="3"></textarea>
+                        <button id="btn-parse" class="btn btn-primary btn-block">AI 智能解析</button>
+                        <button id="btn-manual" class="btn btn-outline btn-block" style="margin-top:8px">手动记账</button>
+                    </div>
+
+                    <div id="preview-card" class="card hidden">
+                        <h3 class="preview-title">解析结果确认</h3>
+                        <div class="form-group">
+                            <label>金额（元）</label>
+                            <input type="number" id="preview-amount" step="0.01" min="0" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>类别</label>
+                            <select id="preview-category" class="form-input"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>描述</label>
+                            <input type="text" id="preview-desc" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>日期</label>
+                            <input type="date" id="preview-date" class="form-input">
+                        </div>
+                        <div class="form-group form-inline">
+                            <label>类型</label>
+                            <label class="switch-label">
+                                <span>支出</span>
+                                <input type="checkbox" id="preview-income">
+                                <span class="switch-track"></span>
+                                <span>收入</span>
+                            </label>
+                        </div>
+                        <div class="btn-row">
+                            <button id="btn-cancel" class="btn btn-outline">取消</button>
+                            <button id="btn-save" class="btn btn-primary">确认保存</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI 对话模式 -->
+                <div id="mode-chat" class="hidden">
+                    <div id="chat-messages" class="chat-messages">
+                        <div class="chat-msg chat-msg-ai">
+                            <div class="chat-bubble">嗨！我是你的记账小助手～跟我说说你今天花了什么吧 😄</div>
+                        </div>
+                    </div>
+                    <div class="chat-input-row">
+                        <input type="text" id="chat-input" class="chat-text-input" placeholder="说说你的消费...">
+                        <button id="btn-chat-send" class="btn btn-primary chat-send-btn">发送</button>
+                    </div>
+                    <button id="btn-chat-clear" class="btn btn-outline btn-block" style="margin-top:8px">清空对话</button>
+                </div>
+            </section>
+
+            <!-- 账单列表页 -->
+            <section id="page-billList" class="page">
+                <div class="filter-bar">
+                    <button id="filter-prev-month" class="btn-icon">&lt;</button>
+                    <span id="filter-month-label">本月</span>
+                    <button id="filter-next-month" class="btn-icon">&gt;</button>
+                    <span style="flex:1"></span>
+                    <button id="filter-reset" class="btn btn-small">全部</button>
+                </div>
+                <div id="bill-list" class="bill-list"></div>
+                <div id="load-more-wrap" class="hidden">
+                    <button id="btn-load-more" class="btn btn-outline btn-block">加载更多</button>
+                </div>
+                <div id="bill-list-empty" class="empty-state hidden">
+                    <div class="empty-icon">📝</div>
+                    <p>还没有账单记录</p>
+                </div>
+            </section>
+
+            <!-- 编辑弹窗 -->
+            <div id="edit-modal" class="modal hidden">
+                <div class="modal-overlay"></div>
+                <div class="modal-card">
+                    <h3>编辑账单</h3>
+                    <div class="form-group">
+                        <label>金额</label>
+                        <input type="number" id="edit-amount" step="0.01" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>类别</label>
+                        <select id="edit-category" class="form-input"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <input type="text" id="edit-desc" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="date" id="edit-date" class="form-input">
+                    </div>
+                    <div class="form-group form-inline">
+                        <label>类型</label>
+                        <label class="switch-label">
+                            <span>支出</span>
+                            <input type="checkbox" id="edit-income">
+                            <span class="switch-track"></span>
+                            <span>收入</span>
+                        </label>
+                    </div>
+                    <div class="btn-row">
+                        <button id="btn-edit-cancel" class="btn btn-outline">取消</button>
+                        <button id="btn-edit-save" class="btn btn-primary">保存修改</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 统计页 -->
+            <section id="page-stats" class="page">
+                <div class="period-selector">
+                    <button class="btn btn-small period-btn active" data-period="this_month">本月</button>
+                    <button class="btn btn-small period-btn" data-period="last_month">上月</button>
+                    <button class="btn btn-small period-btn" data-period="last_3months">近3月</button>
+                    <button class="btn btn-small period-btn" data-period="this_year">本年</button>
+                </div>
+                <div class="summary-cards">
+                    <div class="summary-card expense-card">
+                        <span class="summary-label">总支出</span>
+                        <span id="sum-expense" class="summary-value">¥0.00</span>
+                    </div>
+                    <div class="summary-card income-card">
+                        <span class="summary-label">总收入</span>
+                        <span id="sum-income" class="summary-value">¥0.00</span>
+                    </div>
+                </div>
+                <div class="chart-card card">
+                    <h3>支出分类</h3>
+                    <canvas id="pie-chart"></canvas>
+                </div>
+                <div class="chart-card card">
+                    <h3>每日支出</h3>
+                    <canvas id="bar-chart"></canvas>
+                </div>
+            </section>
+
+            <!-- 设置页 -->
+            <section id="page-settings" class="page">
+                <div class="card">
+                    <h3>AI 接口配置</h3>
+                    <div class="form-group">
+                        <label>接口类型</label>
+                        <div class="radio-group">
+                            <label><input type="radio" name="setting-provider" value="openai" checked> OpenAI兼容</label>
+                            <label><input type="radio" name="setting-provider" value="ollama"> Ollama本地</label>
+                            <label><input type="radio" name="setting-provider" value="custom"> 自定义</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>API 地址</label>
+                        <input type="text" id="setting-api-url" class="form-input" placeholder="https://api.openai.com">
+                    </div>
+                    <div class="form-group" id="group-api-path">
+                        <label>接口路径 <span style="font-weight:400;color:var(--text-hint)">（选填，默认自动拼接）</span></label>
+                        <input type="text" id="setting-api-path" class="form-input" placeholder="/v1/chat/completions">
+                    </div>
+                    <div class="form-group" id="group-api-key">
+                        <label>API Key（可选） <span id="key-status" style="font-weight:400;color:var(--primary);display:none">(已设置)</span></label>
+                        <input type="password" id="setting-api-key" class="form-input" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label>模型名称</label>
+                        <input type="text" id="setting-model" class="form-input" placeholder="gpt-3.5-turbo">
+                    </div>
+                    <div class="form-group">
+                        <small style="color:var(--text-hint);line-height:1.6">
+                            支持所有 OpenAI 兼容接口（DeepSeek、通义千问、智谱、Sealos 等）、Ollama 本地模型。<br>
+                            示例：<br>
+                            &bull; OpenAI: <code>https://api.openai.com</code><br>
+                            &bull; DeepSeek: <code>https://api.deepseek.com</code><br>
+                            &bull; Sealos: <code>https://aiproxy.hzh.sealos.run</code><br>
+                            &bull; Ollama: <code>http://localhost:11434</code><br>
+                            <br>提示：如果地址已包含完整路径（如 <code>.../v1/chat/completions</code>），系统会自动识别不再追加。
+                        </small>
+                    </div>
+                    <div class="btn-row">
+                        <button id="btn-test-connection" class="btn btn-outline">测试连接</button>
+                        <button id="btn-save-settings" class="btn btn-primary">保存设置</button>
+                    </div>
+                    <div id="test-result" class="test-result hidden"></div>
+                </div>
+
+                <div class="card">
+                    <h3>数据导出</h3>
+                    <div class="btn-row">
+                        <button id="btn-export-csv" class="btn btn-outline">导出 CSV</button>
+                        <button id="btn-export-json" class="btn btn-outline">导出 JSON</button>
+                    </div>
+                </div>
+
+                <div class="version-info">
+                    <p>AI 自动记账 v1.0</p>
+                    <p>数据完全存储在本地，不上传云端</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部导航 -->
+        <nav id="bottom-nav">
+            <button class="nav-tab active" data-page="addBill">
+                <span class="tab-icon">✏</span>
+                <span class="tab-label">记账</span>
+            </button>
+            <button class="nav-tab" data-page="billList">
+                <span class="tab-icon">📋</span>
+                <span class="tab-label">账单</span>
+            </button>
+            <button class="nav-tab" data-page="stats">
+                <span class="tab-icon">📊</span>
+                <span class="tab-label">统计</span>
+            </button>
+            <button class="nav-tab" data-page="settings">
+                <span class="tab-icon">⚙</span>
+                <span class="tab-label">设置</span>
+            </button>
+        </nav>
+
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/pages/addBill.js"></script>
+    <script src="/static/js/pages/billList.js"></script>
+    <script src="/static/js/pages/stats.js"></script>
+    <script src="/static/js/pages/settings.js"></script>
+    <script src="/static/js/app.js"></script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js');
+        }
+    </script>
+</body>
+</html>

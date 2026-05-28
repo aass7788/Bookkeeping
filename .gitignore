@@ -1,0 +1,5 @@
+data/bookkeeping.db
+data/.encryption_key
+__pycache__/
+*.pyc
+.env
