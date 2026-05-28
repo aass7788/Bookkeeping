@@ -169,7 +169,16 @@
       <div class="field"><label class="field-lbl">API 地址</label><input v-model="aiConf.url"></div>
       <div class="field"><label class="field-lbl">API Key</label><input type="password" v-model="aiConf.key"></div>
       <div class="field"><label class="field-lbl">模型名</label><input v-model="aiConf.model"></div>
-      <button style="width:100%;background:var(--ink);color:#fff;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:bold;cursor:pointer;" @click="saveAiConf">保存配置</button>
+      <div class="field"><label class="field-lbl">接口类型</label>
+        <select v-model="aiConf.provider" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-family:inherit;font-size:13px;color:var(--ink);">
+          <option value="openai">OpenAI 兼容</option><option value="ollama">Ollama</option><option value="custom">自定义</option>
+        </select>
+      </div>
+      <div class="field"><label class="field-lbl">接口路径</label><input v-model="aiConf.path" placeholder="/v1/chat/completions"></div>
+      <div style="display:flex;gap:6px;">
+        <button style="flex:1;background:var(--ink);color:#fff;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:bold;cursor:pointer;" @click="saveAiConf">保存</button>
+        <button style="padding:8px 16px;background:var(--card);border:1.5px solid var(--line);border-radius:8px;font-size:12px;cursor:pointer;color:var(--ink);" @click="testAi">测试连接</button>
+      </div>
     </div>
     <div class="adm-sec"><div class="adm-title">👥 用户管理</div>
       <div style="display:flex;gap:6px;margin-bottom:10px;"><input v-model="newUser" placeholder="新用户名" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid var(--line);font-size:12px;"><button @click="addUser" style="background:var(--ink);color:#fff;border:none;padding:0 12px;border-radius:8px;font-size:11px;cursor:pointer;">新增</button></div>
@@ -223,7 +232,7 @@ createApp({setup(){
   const usr=ref(JSON.parse(localStorage.getItem('jz_usr')||'null'));
   const isAdm=ref(!!localStorage.getItem('jz_adm'));
   const bills=ref([]),adminUsers=ref([]),announce=ref('');
-  const aiConf=reactive({url:'',key:'',model:''});const newUser=ref('');
+  const aiConf=reactive({url:'',key:'',model:'',provider:'openai',path:'/v1/chat/completions'});const newUser=ref('');
   const sIn=ref('0'),sOut=ref('0'),barHtml=ref('');
   const cats=[{k:'餐饮',icon:'🍜'},{k:'交通',icon:'🚗'},{k:'购物',icon:'🛍'},{k:'娱乐',icon:'🎮'},{k:'住房',icon:'🏠'},{k:'其他',icon:'📦'}];
   const tabs=[{k:'log',label:'AI',icon:'✨'},{k:'bills',label:'明细',icon:'📋'},{k:'stats',label:'分析',icon:'📊'},{k:'me',label:'设置',icon:'👤'}];
@@ -233,7 +242,7 @@ createApp({setup(){
 
   const loadBills=async()=>{const d=await API('/api/bills?per_page=500');if(d.bills)bills.value=d.bills.map(b=>({...b,icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:b.is_income?'income':'expense',note:b.raw_input||b.description||''}));};
   const loadAnnounce=async()=>{const d=await API('/api/announcement');if(d.text)announce.value=d.text;};
-  const loadAi=async()=>{const d=await API('/api/settings');if(d.settings){aiConf.url=d.api_url||'';aiConf.key=d.api_key||'';aiConf.model=d.model||'';}};
+  const loadAi=async()=>{const d=await API('/api/settings');if(d.settings){const s=d.settings;aiConf.url=s.api_url||'';aiConf.key=s.api_key||'';aiConf.model=s.model||'';aiConf.provider=s.api_provider||'openai';aiConf.path=s.api_path||'/v1/chat/completions';}};
   const loadAdmin=async()=>{if(!isAdm.value)return;const d=await API('/api/admin/users');if(d.users)adminUsers.value=d.users;};
   const loadStats=async()=>{const d=await API('/api/stats');sIn.value=(d.total_income||0).toFixed(0);sOut.value=(d.total_expense||0).toFixed(0);if(d.daily){const mx=Math.max(...d.daily.map(x=>x.amount),1);barHtml.value=d.daily.map(x=>`<div class="bar-col"><div class="bar-fill" style="height:${(x.amount/mx*100).toFixed(0)}%"></div><div class="bar-lbl">${x.date.slice(-2)}</div></div>`).join('');}};
 
@@ -254,7 +263,8 @@ createApp({setup(){
   const verifyAdmin=async()=>{const d=await API('/api/admin/login',{method:'POST',body:JSON.stringify({password:adminPw.value})});if(d.success){isAdm.value=true;localStorage.setItem('jz_adm','1');showAdmin.value=false;adminPw.value='';loadAdmin();loadAi();toast('👑 管理员');}else toast('❌ 密码错误');};
   const exitAdmin=()=>{isAdm.value=false;localStorage.removeItem('jz_adm');go('me');};
   const saveAnnounce=async()=>{await API('/api/settings',{method:'PUT',body:JSON.stringify({announcement:announce.value})});toast('📢 已发布');};
-  const saveAiConf=async()=>{await API('/api/settings',{method:'PUT',body:JSON.stringify({api_url:aiConf.url,api_key:aiConf.key,model:aiConf.model})});toast('✓ 已保存');};
+  const saveAiConf=async()=>{await API('/api/settings',{method:'PUT',body:JSON.stringify({api_url:aiConf.url,api_key:aiConf.key,model:aiConf.model,api_provider:aiConf.provider,api_path:aiConf.path})});toast('✓ 已保存');};
+  const testAi=async()=>{const d=await API('/api/settings/test',{method:'POST'});toast(d.success?'✅ '+d.message:'❌ '+d.message);};
   const addUser=async()=>{if(!newUser.value.trim())return;await API('/api/admin/users',{method:'POST',body:JSON.stringify({username:newUser.value.trim(),password:'pass1234'})});newUser.value='';loadAdmin();toast('✓ 已添加');};
   const deleteUser=async(id)=>{await API(`/api/admin/users/${id}`,{method:'DELETE'});loadAdmin();toast('🗑 已删除');};
   const exportCSV=()=>{const a=document.createElement('a');a.href='/api/export';a.download='bills.csv';a.click();};
@@ -264,7 +274,7 @@ createApp({setup(){
   loadBills();loadAnnounce();loadAi();loadAdmin();loadStats();
   const headerDate=new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'short'});
 
-  return{pg,drawer,showLogin,showAdmin,flt,aiTxt,chat,chatScroll,form,lU,lP,adminPw,usr,isAdm,bills,adminUsers,announce,aiConf,newUser,sIn,sOut,barHtml,cats,tabs,filters,totalIncome,totalExpense,currentNetTotal,sYm,go,openDrawer,filtered,saveBill,sendAi,confirmAi,doLogin,doRegister,doLogout,verifyAdmin,exitAdmin,saveAnnounce,saveAiConf,addUser,deleteUser,exportCSV,headerDate};
+  return{pg,drawer,showLogin,showAdmin,flt,aiTxt,chat,chatScroll,form,lU,lP,adminPw,usr,isAdm,bills,adminUsers,announce,aiConf,newUser,sIn,sOut,barHtml,cats,tabs,filters,totalIncome,totalExpense,currentNetTotal,sYm,go,openDrawer,filtered,saveBill,sendAi,confirmAi,doLogin,doRegister,doLogout,verifyAdmin,exitAdmin,saveAnnounce,saveAiConf,testAi,addUser,deleteUser,exportCSV,headerDate};
 }}).mount('#app');
 </script>
 </body>
