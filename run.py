@@ -77,7 +77,10 @@ def api_debug():
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    import os as _os
+    from flask import send_file
+    _dir = _os.path.dirname(_os.path.abspath(__file__))
+    return send_file(_os.path.join(_dir, "templates", "index.html"))
 
 
 # --- Bills API ---
