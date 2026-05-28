@@ -1,0 +1,20 @@
+services:
+  app:
+    image: ghcr.io/aass7788/bookkeeping:latest
+    container_name: jizhang
+    ports:
+      - "5000:5000"
+    volumes:
+      - jizhang_data:/app/data
+    environment:
+      - JIZHANG_TOKEN=${JIZHANG_TOKEN}
+      - JIZHANG_ADMIN_PW=${JIZHANG_ADMIN_PW}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  jizhang_data:
