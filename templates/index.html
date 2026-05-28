@@ -12,9 +12,9 @@
 <style>
   :root{ --paper:#f5f0e8;--ink:#1a1714;--ink2:#5c554d;--ink3:#9e958b;--rust:#c75b39;--emerald:#2e7d32;--line:rgba(0,0,0,.06);--card:rgba(255,255,255,.65); }
   *,*::before,*::after{ margin:0;padding:0;box-sizing:border-box; }
-  body{ background:linear-gradient(160deg,#ede7db,#e8e0d2 40%,#f0ebe2 70%,#e5ddd0); color:var(--ink);font-family:"Noto Serif SC","PingFang SC",serif; min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:10px; }
-  body::after{ content:'';position:fixed;inset:0;pointer-events:none;opacity:.035;z-index:9999; background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E"); }
-  .app{ width:100%;max-width:400px;height:calc(100vh - 20px);max-height:840px;background:var(--paper);border-radius:28px; overflow:hidden;box-shadow:0 2px 40px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.03); display:flex;flex-direction:column;position:relative;z-index:1; }
+  body{ background:transparent; color:var(--ink);font-family:"Noto Serif SC","PingFang SC",serif; min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:10px; }
+  body::after{ content:'';position:fixed;inset:0;pointer-events:none;opacity:.025;z-index:3; background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E"); }
+  .app{ width:100%;max-width:400px;height:calc(100vh - 20px);max-height:840px;background:rgba(245,240,232,.85);backdrop-filter:blur(6px);border-radius:28px; overflow:hidden;box-shadow:0 2px 40px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.03); display:flex;flex-direction:column;position:relative;z-index:2; }
   .header{padding:30px 22px 6px;display:flex;justify-content:space-between;align-items:baseline;}
   .header-left>div:first-child{font-size:11px;color:var(--ink3);letter-spacing:2px;text-transform:uppercase;}
   .header-left h1{font-size:31px;font-weight:900;letter-spacing:-2px;line-height:1.1;margin-top:2px;}

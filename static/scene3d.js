@@ -18,7 +18,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const el = document.createElement('div');
 el.id = 'scene3d';
-el.style.cssText = 'position:fixed;inset:0;z-index:0;pointer-events:none;';
+el.style.cssText = 'position:fixed;inset:0;z-index:1;pointer-events:none;';
 document.body.prepend(el);
 el.appendChild(renderer.domElement);
 
