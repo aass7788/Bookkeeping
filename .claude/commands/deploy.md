@@ -33,17 +33,17 @@ jizhang/               ← Flask 服务端（核心业务逻辑）
 全量上传：
 
 ```powershell
-scp d:\py\jizhang\run.py,d:\py\jizhang\models.py Administrator@121.43.238.163:/Users/Administrator/Desktop/jizhang/
-scp d:\py\jizhang\templates\index.html Administrator@121.43.238.163:/Users/Administrator/Desktop/jizhang/templates/
-scp d:\py\jizhang\static\sw.js Administrator@121.43.238.163:/Users/Administrator/Desktop/jizhang/static/
-scp d:\py\jizhang\static\js\app.js,d:\py\jizhang\static\js\api.js Administrator@121.43.238.163:/Users/Administrator/Desktop/jizhang/static/js/
-scp d:\py\jizhang\static\js\pages\settings.js,d:\py\jizhang\static\js\pages\addBill.js,d:\py\jizhang\static\js\pages\billList.js,d:\py\jizhang\static\js\pages\stats.js Administrator@121.43.238.163:/Users/Administrator/Desktop/jizhang/static/js/pages/
+scp d:\py\jizhang\run.py,d:\py\jizhang\models.py Administrator@你的服务器IP:/Users/Administrator/Desktop/jizhang/
+scp d:\py\jizhang\templates\index.html Administrator@你的服务器IP:/Users/Administrator/Desktop/jizhang/templates/
+scp d:\py\jizhang\static\sw.js Administrator@你的服务器IP:/Users/Administrator/Desktop/jizhang/static/
+scp d:\py\jizhang\static\js\app.js,d:\py\jizhang\static\js\api.js Administrator@你的服务器IP:/Users/Administrator/Desktop/jizhang/static/js/
+scp d:\py\jizhang\static\js\pages\settings.js,d:\py\jizhang\static\js\pages\addBill.js,d:\py\jizhang\static\js\pages\billList.js,d:\py\jizhang\static\js\pages\stats.js Administrator@你的服务器IP:/Users/Administrator/Desktop/jizhang/static/js/pages/
 ```
 
 ### 2. 重启 ECS 服务
 
 ```powershell
-ssh Administrator@121.43.238.163 "Stop-Process -Name python -Force; cd C:\Users\Administrator\Desktop\jizhang; Start-Process python -ArgumentList 'run.py' -WindowStyle Hidden"
+ssh Administrator@你的服务器IP "Stop-Process -Name python -Force; cd C:\Users\Administrator\Desktop\jizhang; Start-Process python -ArgumentList 'run.py' -WindowStyle Hidden"
 ```
 
 ### 3. 如果改过前端文件没生效
@@ -54,11 +54,11 @@ ssh Administrator@121.43.238.163 "Stop-Process -Name python -Force; cd C:\Users\
 
 | 层级 | 说明 |
 |------|------|
-| Token 保护 | URL 必须带 `?token=B8xK9mP2vR6wN3jH5qL7aS4dF1gT6yU9`，before_request 拦截 |
+| Token 保护 | URL 必须带 `?token=你的TOKEN`，before_request 拦截 |
 | 用户注册登录 | 首次打开弹登录面板，可注册/登录，也可跳过试用 |
 | 数据隔离 | 登录后用用户名关联；未登录用 X-User-Id 随机 UUID |
 | _get_uid() | 先读 X-Auth-Token 查用户表，再回退 X-User-Id |
-| 管理员 | 设置页管理员登录（密码 `jz123.`），管理 AI 配置、公告、用户 |
+| 管理员 | 设置页管理员登录（密码见 `JIZHANG_ADMIN_PW` 环境变量），管理 AI 配置、公告、用户 |
 
 ## 管理员功能
 
@@ -69,7 +69,7 @@ ssh Administrator@121.43.238.163 "Stop-Process -Name python -Force; cd C:\Users\
 
 ## 调试
 
-访问 `http://121.43.238.163:5000/api/debug`，检查：
+访问 `http://你的服务器IP:5000/api/debug`，检查：
 - `uid`：当前用户标识（应与账单的 user_id 一致）
 - `recent_bills`：最近账单及其 user_id
 - `session_ok`：Token 认证是否通过
@@ -93,7 +93,7 @@ ssh Administrator@121.43.238.163 "Stop-Process -Name python -Force; cd C:\Users\
 
 ## ECS 环境
 
-- 公网 IP：121.43.238.163
+- 公网 IP：你的服务器IP
 - 系统：Windows，mstsc 远程桌面
 - 用户名：Administrator
 - 项目路径：`C:\Users\Administrator\Desktop\jizhang\`

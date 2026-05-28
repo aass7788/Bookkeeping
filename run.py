@@ -24,8 +24,8 @@ else:
         f.write(key)
     app.secret_key = key
 
-SECRET_TOKEN = "B8xK9mP2vR6wN3jH5qL7aS4dF1gT6yU9"
-ADMIN_PASSWORD = "jz123."
+SECRET_TOKEN = os.environ.get("JIZHANG_TOKEN", "changeme")
+ADMIN_PASSWORD = os.environ.get("JIZHANG_ADMIN_PW", "changeme")
 
 
 def _get_uid():
