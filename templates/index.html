@@ -242,7 +242,7 @@ createApp({setup(){
 
   const loadBills=async()=>{const d=await API('/api/bills?per_page=500');if(d.bills)bills.value=d.bills.map(b=>({...b,icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:b.is_income?'income':'expense',note:b.raw_input||b.description||''}));};
   const loadAnnounce=async()=>{const d=await API('/api/announcement');if(d.text)announce.value=d.text;};
-  const loadAi=async()=>{const d=await API('/api/settings');if(d.settings){const s=d.settings;aiConf.url=s.api_url||'';aiConf.key=s.api_key||'';aiConf.model=s.model||'';aiConf.provider=s.api_provider||'openai';aiConf.path=s.api_path||'/v1/chat/completions';}};
+  const loadAi=async()=>{const d=await API('/api/settings');if(d.api_url!==undefined){aiConf.url=d.api_url||'';aiConf.key=d.has_key?'••••••••••••••••':'';aiConf.model=d.model||'';aiConf.provider=d.api_provider||'openai';aiConf.path=d.api_path||'/v1/chat/completions';}};
   const loadAdmin=async()=>{if(!isAdm.value)return;const d=await API('/api/admin/users');if(d.users)adminUsers.value=d.users;};
   const loadStats=async()=>{const d=await API('/api/stats');sIn.value=(d.total_income||0).toFixed(0);sOut.value=(d.total_expense||0).toFixed(0);if(d.daily){const mx=Math.max(...d.daily.map(x=>x.amount),1);barHtml.value=d.daily.map(x=>`<div class="bar-col"><div class="bar-fill" style="height:${(x.amount/mx*100).toFixed(0)}%"></div><div class="bar-lbl">${x.date.slice(-2)}</div></div>`).join('');}};
 
@@ -263,7 +263,7 @@ createApp({setup(){
   const verifyAdmin=async()=>{const d=await API('/api/admin/login',{method:'POST',body:JSON.stringify({password:adminPw.value})});if(d.success){isAdm.value=true;localStorage.setItem('jz_adm','1');showAdmin.value=false;adminPw.value='';loadAdmin();loadAi();toast('👑 管理员');}else toast('❌ 密码错误');};
   const exitAdmin=()=>{isAdm.value=false;localStorage.removeItem('jz_adm');go('me');};
   const saveAnnounce=async()=>{await API('/api/settings',{method:'PUT',body:JSON.stringify({announcement:announce.value})});toast('📢 已发布');};
-  const saveAiConf=async()=>{await API('/api/settings',{method:'PUT',body:JSON.stringify({api_url:aiConf.url,api_key:aiConf.key,model:aiConf.model,api_provider:aiConf.provider,api_path:aiConf.path})});toast('✓ 已保存');};
+  const saveAiConf=async()=>{const payload={api_url:aiConf.url,model:aiConf.model,api_provider:aiConf.provider,api_path:aiConf.path};if(aiConf.key&&!aiConf.key.startsWith('••'))payload.api_key=aiConf.key;await API('/api/settings',{method:'PUT',body:JSON.stringify(payload)});toast('✓ 已保存');};
   const testAi=async()=>{const d=await API('/api/settings/test',{method:'POST'});toast(d.success?'✅ '+d.message:'❌ '+d.message);};
   const addUser=async()=>{if(!newUser.value.trim())return;await API('/api/admin/users',{method:'POST',body:JSON.stringify({username:newUser.value.trim(),password:'pass1234'})});newUser.value='';loadAdmin();toast('✓ 已添加');};
   const deleteUser=async(id)=>{await API(`/api/admin/users/${id}`,{method:'DELETE'});loadAdmin();toast('🗑 已删除');};
