@@ -201,7 +201,7 @@
   <div :class="['drawer-bg',{on:drawer}]" @click.self="drawer=false"><div class="drawer"><div class="drawer-header"><span>⌨️ 手动记账</span><button @click="drawer=false" aria-label="关闭">×</button></div>
     <div class="type-tabs"><button :class="['type-tab',{'on-exp':form.type==='expense'}]" @click="form.type='expense'">支出</button><button :class="['type-tab',{'on-inc':form.type==='income'}]" @click="form.type='income'">收入</button></div>
     <div class="cats"><button type="button" v-for="c in cats" :class="['cat',{on:form.cat===c.k}]" @click="form.cat=c.k">{{c.icon}} {{c.k}}</button></div>
-    <div class="field"><input type="number" v-model="form.amt" placeholder="0.00"></div>
+    <div class="field"><input type="number" step="0.01" v-model="form.amt" placeholder="0.00"></div>
     <div class="field"><input type="text" v-model="form.note" placeholder="备注"></div>
     <button type="button" style="width:100%;padding:14px;border-radius:12px;background:var(--ink);color:#fff;border:none;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;" @click="saveBill">保存</button>
   </div></div>
@@ -271,12 +271,12 @@ createApp({setup(){
   const loadAnnounce=async()=>{const d=await api.announce();if(d.text)announce.value=d.text;};
   const loadAi=async()=>{const d=await api.getSettings();if(d.api_url!==undefined){aiConf.url=d.api_url||'';aiConf.key=d.has_key?'••••••••••••••••':'';aiConf.model=d.model||'';aiConf.provider=d.api_provider||'openai';aiConf.path=d.api_path||'/v1/chat/completions';}};
   const loadAdmin=async()=>{if(!isAdm.value)return;const d=await api.adminUsers();if(d.users)adminUsers.value=d.users;};
-  const loadStats=async()=>{const d=await api.getStats();sIn.value=(d.total_income||0).toFixed(0);sOut.value=(d.total_expense||0).toFixed(0);if(d.daily_totals&&d.daily_totals.length){const mx=Math.max(...d.daily_totals.map(x=>x.expense||0),1);barHtml.value=d.daily_totals.map(x=>`<div class="bar-col"><div class="bar-fill" style="height:${((x.expense||0)/mx*100).toFixed(0)}%"></div><div class="bar-lbl">${(x.date||'').slice(-2)}</div></div>`).join('');}};
+  const loadStats=async()=>{const d=await api.getStats();sIn.value=(d.total_income||0).toFixed(2);sOut.value=(d.total_expense||0).toFixed(2);if(d.daily_totals&&d.daily_totals.length){const mx=Math.max(...d.daily_totals.map(x=>x.expense||0),1);barHtml.value=d.daily_totals.map(x=>`<div class="bar-col"><div class="bar-fill" style="height:${((x.expense||0)/mx*100).toFixed(2)}%"></div><div class="bar-lbl">${(x.date||'').slice(-2)}</div></div>`).join('');}};
 
   const filtered=computed(()=>{let a=bills.value;const n=new Date(),td=n.toISOString().slice(0,10);if(flt.value==='今天')a=a.filter(b=>b.date?.startsWith(td));else if(flt.value==='本周'){const w=new Date(n);w.setDate(n.getDate()-n.getDay());a=a.filter(b=>b.date>=w.toISOString().slice(0,10));}else if(flt.value==='本月')a=a.filter(b=>b.date?.startsWith(td.slice(0,7)));return a;});
-  const totalIncome=computed(()=>bills.value.filter(b=>(b.type||'exp')==='income').reduce((s,b)=>s+parseFloat(b.amt||b.amount||0),0).toFixed(0));
-  const totalExpense=computed(()=>bills.value.filter(b=>(b.type||'exp')==='expense').reduce((s,b)=>s+parseFloat(b.amt||b.amount||0),0).toFixed(0));
-  const currentNetTotal=computed(()=>{const i=parseFloat(totalIncome.value)||0,e=parseFloat(totalExpense.value)||0;return (i-e).toLocaleString('zh-CN');});
+  const totalIncome=computed(()=>bills.value.filter(b=>(b.type||'exp')==='income').reduce((s,b)=>s+parseFloat(b.amt||b.amount||0),0).toFixed(2));
+  const totalExpense=computed(()=>bills.value.filter(b=>(b.type||'exp')==='expense').reduce((s,b)=>s+parseFloat(b.amt||b.amount||0),0).toFixed(2));
+  const currentNetTotal=computed(()=>{const i=parseFloat(totalIncome.value)||0,e=parseFloat(totalExpense.value)||0;return (i-e).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');});
   const sYm=computed(()=>`${new Date().getFullYear()}年${new Date().getMonth()+1}月`);
 
   const saveBill=async()=>{const a=parseFloat(form.amt);if(!a||a<=0)return toast('请输入金额');const b=JSON.stringify({amount:a,category:form.cat,description:form.note||form.cat,bill_date:new Date().toISOString().slice(0,10),is_income:form.type==='income'?1:0});const r=await api.createBill(JSON.parse(b));if(!r.error){form.amt='';form.note='';drawer.value=false;loadBills();loadStats();toast('✓ 已记录');}else toast(r.error);};
