@@ -147,6 +147,7 @@
     <div class="tabs"><button v-for="f in filters" :class="['tab',{on:flt===f}]" @click="flt=f">{{f}}</button></div>
     <div v-if="filtered.length"><div v-for="b in filtered" class="bill"><span class="bill-icon">{{b.icon||'📦'}}</span><div class="bill-mid"><div class="bill-cat">{{b.cat||b.category}}</div><div class="bill-note">{{b.note||b.raw_input||''}}</div></div><div class="bill-right"><div :class="['bill-amt',b.type||'exp']">{{(b.type||'exp')==='income'?'+':'-'}}¥{{b.amt||b.amount}}</div><div class="bill-date">{{(b.date||'').slice(5)}}</div></div><button class="bill-del" @click.stop="delBill(b)" title="del">X</button></div></div>
     <div v-else class="empty"><div class="empty-icon">📭</div>暂无记录</div>
+    <div class="delete-confirm" v-if="delConfirm"><p>确定删除 {{delConfirm.amt||delConfirm.amount}} {{delConfirm.cat||delConfirm.category}}？</p><div class="btn-row"><button class="btn" @click="cancelDel">取消</button><button class="btn btn-danger" @click="doDel">确认删除</button></div></div>
   </div>
 
   <!-- STATS -->
@@ -259,7 +260,7 @@ createApp({setup(){
   const isAdm=ref(!!localStorage.getItem('jz_adm'));
   const bills=ref([]),adminUsers=ref([]),announce=ref('');
   const aiConf=reactive({url:'',key:'',model:'',provider:'openai',path:'/v1/chat/completions'});const newUser=ref('');
-  const sIn=ref('0'),sOut=ref('0'),barHtml=ref('');
+  const sIn=ref('0'),sOut=ref('0'),barHtml=ref('');const delConfirm=ref(null);
   const cats=[{k:'餐饮',icon:'🍜'},{k:'交通',icon:'🚗'},{k:'购物',icon:'🛍'},{k:'娱乐',icon:'🎮'},{k:'住房',icon:'🏠'},{k:'其他',icon:'📦'}];
   const tabs=[{k:'log',label:'AI',icon:'✨'},{k:'bills',label:'明细',icon:'📋'},{k:'stats',label:'分析',icon:'📊'},{k:'me',label:'设置',icon:'👤'}];
   const filters=['全部','今天','本周','本月'];const chatScroll=ref(null);
@@ -295,14 +296,16 @@ createApp({setup(){
   const addUser=async()=>{if(!newUser.value.trim())return;await api.adminAddUser(newUser.value.trim());newUser.value='';loadAdmin();toast('✓ 已添加');};
   const deleteUser=async(id)=>{await api.adminDelUser(id);loadAdmin();toast('🗑 已删除');};
   const exportCSV=()=>{const a=document.createElement('a');a.href='/api/export';a.download='bills.csv';a.click();};
-  const delBill=async(b)=>{if(!confirm("删除 "+((b.amt||b.amount)+" "+(b.cat||b.category))+" ?"))return;try{await api.deleteBill(b.id);loadBills();loadStats();toast("已删除");}catch(e){toast("删除失败: "+e.message);}};
+  const delBill=b=>{delConfirm.value=b;};
+const doDel=async()=>{const b=delConfirm.value;delConfirm.value=null;try{await api.deleteBill(b.id);loadBills();loadStats();toast("已删除");}catch(e){toast("删除失败: "+e.message);}};
+const cancelDel=()=>{delConfirm.value=null;};
 
   const toast=m=>{const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);};
 
   loadBills();loadAnnounce();loadAi();loadAdmin();loadStats();
   const headerDate=new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'short'});
 
-  return{pg,drawer,showLogin,showAdmin,flt,aiTxt,chat,chatScroll,form,lU,lP,adminPw,usr,isAdm,bills,adminUsers,announce,aiConf,newUser,sIn,sOut,barHtml,cats,tabs,filters,totalIncome,totalExpense,currentNetTotal,sYm,go,openDrawer,filtered,saveBill,sendAi,confirmAi,doLogin,doRegister,doLogout,verifyAdmin,exitAdmin,saveAnnounce,saveAiConf,testAi,addUser,deleteUser,exportCSV,delBill,headerDate,onAiInput,onAiFocus,onAiBlur};
+  return{pg,drawer,showLogin,showAdmin,flt,aiTxt,chat,chatScroll,form,lU,lP,adminPw,usr,isAdm,bills,adminUsers,announce,aiConf,newUser,sIn,sOut,barHtml,cats,tabs,filters,totalIncome,totalExpense,currentNetTotal,sYm,go,openDrawer,filtered,saveBill,sendAi,confirmAi,doLogin,doRegister,doLogout,verifyAdmin,exitAdmin,saveAnnounce,saveAiConf,testAi,addUser,deleteUser,exportCSV,delBill,doDel,cancelDel,delConfirm,headerDate,onAiInput,onAiFocus,onAiBlur};
 }}).mount('#app');
 </script>
 </body>
