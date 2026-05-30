@@ -267,7 +267,7 @@ createApp({setup(){
   const go=k=>{pg.value=k;if(window.__scene3d)window.__scene3d.go(k);if(k==='log')nextTick(()=>{if(chatScroll.value)chatScroll.value.scrollTop=chatScroll.value.scrollHeight;});if(k==='stats')loadStats();};
   const openDrawer=()=>{form.amt='';form.note='';form.type='expense';drawer.value=true;};
 
-  const loadBills=async()=>{const d=await api.getBills({per_page:500});if(d.bills)bills.value=d.bills.map(b=>({...b,icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:b.is_income?'income':'expense',note:b.raw_input||b.description||''}));};
+  const loadBills=async()=>{const d=await api.getBills({per_page:500});if(d.bills)bills.value=d.bills.map(b=>({...b,date:b.bill_date,icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:b.is_income?'income':'expense',note:b.raw_input||b.description||''}));};
   const loadAnnounce=async()=>{const d=await api.announce();if(d.text)announce.value=d.text;};
   const loadAi=async()=>{const d=await api.getSettings();if(d.api_url!==undefined){aiConf.url=d.api_url||'';aiConf.key=d.has_key?'••••••••••••••••':'';aiConf.model=d.model||'';aiConf.provider=d.api_provider||'openai';aiConf.path=d.api_path||'/v1/chat/completions';}};
   const loadAdmin=async()=>{if(!isAdm.value)return;const d=await api.adminUsers();if(d.users)adminUsers.value=d.users;};
