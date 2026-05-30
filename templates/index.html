@@ -80,6 +80,8 @@
   .bill-amt{font-size:15px;font-family:"DM Mono",monospace;font-weight:500;}
   .bill-amt.exp{color:var(--rust);} .bill-amt.inc{color:var(--emerald);}
   .bill-date{font-size:10px;color:var(--ink3);}
+  .bill-del{width:28px;height:28px;border:none;border-radius:50%;background:#fee2e2;color:#dc2626;font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-left:6px;}
+  .bill-del:hover{background:#fca5a5;color:#991b1b;transform:scale(1.1);}
   .st-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
   .st-card{padding:16px;border-radius:14px;text-align:center;background:rgba(255,255,255,.4);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid var(--line);}
   .st-val{font-size:26px;font-family:"DM Mono",monospace;font-weight:500;}
@@ -143,7 +145,7 @@
   <!-- BILLS -->
   <div :class="['page',{on:pg==='bills'}]" id="p-bills">
     <div class="tabs"><button v-for="f in filters" :class="['tab',{on:flt===f}]" @click="flt=f">{{f}}</button></div>
-    <div v-if="filtered.length"><div v-for="b in filtered" class="bill"><span class="bill-icon">{{b.icon||'📦'}}</span><div class="bill-mid"><div class="bill-cat">{{b.cat||b.category}}</div><div class="bill-note">{{b.note||b.raw_input||''}}</div></div><div class="bill-right"><div :class="['bill-amt',b.type||'exp']">{{(b.type||'exp')==='income'?'+':'-'}}¥{{b.amt||b.amount}}</div><div class="bill-date">{{(b.date||'').slice(5)}}</div></div></div></div>
+    <div v-if="filtered.length"><div v-for="b in filtered" class="bill"><span class="bill-icon">{{b.icon||'📦'}}</span><div class="bill-mid"><div class="bill-cat">{{b.cat||b.category}}</div><div class="bill-note">{{b.note||b.raw_input||''}}</div></div><div class="bill-right"><div :class="['bill-amt',b.type||'exp']">{{(b.type||'exp')==='income'?'+':'-'}}¥{{b.amt||b.amount}}</div><div class="bill-date">{{(b.date||'').slice(5)}}</div></div><button class="bill-del" @click.stop="delBill(b)" title="del">X</button></div></div>
     <div v-else class="empty"><div class="empty-icon">📭</div>暂无记录</div>
   </div>
 
@@ -261,14 +263,14 @@ createApp({setup(){
   const cats=[{k:'餐饮',icon:'🍜'},{k:'交通',icon:'🚗'},{k:'购物',icon:'🛍'},{k:'娱乐',icon:'🎮'},{k:'住房',icon:'🏠'},{k:'其他',icon:'📦'}];
   const tabs=[{k:'log',label:'AI',icon:'✨'},{k:'bills',label:'明细',icon:'📋'},{k:'stats',label:'分析',icon:'📊'},{k:'me',label:'设置',icon:'👤'}];
   const filters=['全部','今天','本周','本月'];const chatScroll=ref(null);
-  const go=k=>{pg.value=k;if(window.__scene3d)window.__scene3d.go(k);if(k==='log')nextTick(()=>{if(chatScroll.value)chatScroll.value.scrollTop=chatScroll.value.scrollHeight;});};
+  const go=k=>{pg.value=k;if(window.__scene3d)window.__scene3d.go(k);if(k==='log')nextTick(()=>{if(chatScroll.value)chatScroll.value.scrollTop=chatScroll.value.scrollHeight;});if(k==='stats')loadStats();};
   const openDrawer=()=>{form.amt='';form.note='';form.type='expense';drawer.value=true;};
 
   const loadBills=async()=>{const d=await api.getBills({per_page:500});if(d.bills)bills.value=d.bills.map(b=>({...b,icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:b.is_income?'income':'expense',note:b.raw_input||b.description||''}));};
   const loadAnnounce=async()=>{const d=await api.announce();if(d.text)announce.value=d.text;};
   const loadAi=async()=>{const d=await api.getSettings();if(d.api_url!==undefined){aiConf.url=d.api_url||'';aiConf.key=d.has_key?'••••••••••••••••':'';aiConf.model=d.model||'';aiConf.provider=d.api_provider||'openai';aiConf.path=d.api_path||'/v1/chat/completions';}};
   const loadAdmin=async()=>{if(!isAdm.value)return;const d=await api.adminUsers();if(d.users)adminUsers.value=d.users;};
-  const loadStats=async()=>{const d=await api.getStats();sIn.value=(d.total_income||0).toFixed(0);sOut.value=(d.total_expense||0).toFixed(0);if(d.daily){const mx=Math.max(...d.daily.map(x=>x.amount),1);barHtml.value=d.daily.map(x=>`<div class="bar-col"><div class="bar-fill" style="height:${(x.amount/mx*100).toFixed(0)}%"></div><div class="bar-lbl">${x.date.slice(-2)}</div></div>`).join('');}};
+  const loadStats=async()=>{const d=await api.getStats();sIn.value=(d.total_income||0).toFixed(0);sOut.value=(d.total_expense||0).toFixed(0);if(d.daily_totals&&d.daily_totals.length){const mx=Math.max(...d.daily_totals.map(x=>x.expense||0),1);barHtml.value=d.daily_totals.map(x=>`<div class="bar-col"><div class="bar-fill" style="height:${((x.expense||0)/mx*100).toFixed(0)}%"></div><div class="bar-lbl">${(x.date||'').slice(-2)}</div></div>`).join('');}};
 
   const filtered=computed(()=>{let a=bills.value;const n=new Date(),td=n.toISOString().slice(0,10);if(flt.value==='今天')a=a.filter(b=>b.date?.startsWith(td));else if(flt.value==='本周'){const w=new Date(n);w.setDate(n.getDate()-n.getDay());a=a.filter(b=>b.date>=w.toISOString().slice(0,10));}else if(flt.value==='本月')a=a.filter(b=>b.date?.startsWith(td.slice(0,7)));return a;});
   const totalIncome=computed(()=>bills.value.filter(b=>(b.type||'exp')==='income').reduce((s,b)=>s+parseFloat(b.amt||b.amount||0),0).toFixed(0));
@@ -276,14 +278,14 @@ createApp({setup(){
   const currentNetTotal=computed(()=>{const i=parseFloat(totalIncome.value)||0,e=parseFloat(totalExpense.value)||0;return (i-e).toLocaleString('zh-CN');});
   const sYm=computed(()=>`${new Date().getFullYear()}年${new Date().getMonth()+1}月`);
 
-  const saveBill=async()=>{const a=parseFloat(form.amt);if(!a||a<=0)return toast('请输入金额');const b=JSON.stringify({amount:a,category:form.cat,description:form.note||form.cat,bill_date:new Date().toISOString().slice(0,10),is_income:form.type==='income'?1:0});const r=await api.createBill(JSON.parse(b));if(!r.error){form.amt='';form.note='';drawer.value=false;loadBills();toast('✓ 已记录');}else toast(r.error);};
+  const saveBill=async()=>{const a=parseFloat(form.amt);if(!a||a<=0)return toast('请输入金额');const b=JSON.stringify({amount:a,category:form.cat,description:form.note||form.cat,bill_date:new Date().toISOString().slice(0,10),is_income:form.type==='income'?1:0});const r=await api.createBill(JSON.parse(b));if(!r.error){form.amt='';form.note='';drawer.value=false;loadBills();loadStats();toast('✓ 已记录');}else toast(r.error);};
 
   let typeTimer=null;const onAiInput=()=>{if(window.__scene3d)window.__scene3d.type();clearTimeout(typeTimer);typeTimer=setTimeout(()=>{if(window.__scene3d)window.__scene3d.stopType();},1500);};const onAiFocus=()=>{if(window.__scene3d)window.__scene3d.type();};const onAiBlur=()=>{if(window.__scene3d)window.__scene3d.stopType();clearTimeout(typeTimer);};
   const sendAi=async()=>{const t=aiTxt.value.trim();if(!t)return;chat.value.push({role:'user',text:t,id:Date.now()});aiTxt.value='';if(window.__scene3d)window.__scene3d.stopType();try{const r=await api.chat(t);if(r.reply){const parsed=[];if(r.bill){const b=r.bill;parsed.push({icon:cats.find(c=>c.k===b.category)?.icon||'📦',cat:b.category,amt:b.amount,type:b.is_income?'income':'expense',note:b.description||''});}chat.value.push({role:'ai',text:r.reply,parsed,id:Date.now()+1});}else{chat.value.push({role:'ai',text:r.error||'解析失败',parsed:[],id:Date.now()+1});}}catch(e){chat.value.push({role:'ai',text:'网络错误: '+e.message,parsed:[],id:Date.now()+1});}nextTick(()=>{if(chatScroll.value)chatScroll.value.scrollTop=chatScroll.value.scrollHeight;});};
-  const confirmAi=async(p,m)=>{await api.createBill({amount:parseFloat(p.amt),category:p.cat,description:p.note||'AI录入',bill_date:new Date().toISOString().slice(0,10),is_income:p.type==='income'?1:0});m.parsed=[];loadBills();toast('✓ 已确认');};
+  const confirmAi=async(p,m)=>{await api.createBill({amount:parseFloat(p.amt),category:p.cat,description:p.note||'AI录入',bill_date:new Date().toISOString().slice(0,10),is_income:p.type==='income'?1:0});m.parsed=[];loadBills();loadStats();toast('✓ 已确认');};
 
-  const doLogin=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p)return toast('请填写完整');const d=await api.login(u,p);if(d.token){localStorage.setItem('_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('_user',u);showLogin.value=false;lU.value='';lP.value='';loadBills();toast('👋 '+u);}else toast(d.error||'登录失败');};
-  const doRegister=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p||p.length<4)return toast('密码至少4位');const d=await api.register(u,p);if(d.token){localStorage.setItem('_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('_user',u);showLogin.value=false;lU.value='';lP.value='';loadBills();toast('🎉 '+u);}else toast(d.error||'注册失败');};
+  const doLogin=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p)return toast('请填写完整');const d=await api.login(u,p);if(d.token){localStorage.setItem('_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('_user',u);showLogin.value=false;lU.value='';lP.value='';loadBills();loadStats();toast('👋 '+u);}else toast(d.error||'登录失败');};
+  const doRegister=async()=>{const u=lU.value.trim(),p=lP.value.trim();if(!u||!p||p.length<4)return toast('密码至少4位');const d=await api.register(u,p);if(d.token){localStorage.setItem('_token',d.token);usr.value={name:u,id:d.token.slice(0,8)};localStorage.setItem('_user',u);showLogin.value=false;lU.value='';lP.value='';loadBills();loadStats();toast('🎉 '+u);}else toast(d.error||'注册失败');};
   const doLogout=()=>{localStorage.removeItem('_token');localStorage.removeItem('_user');usr.value=null;isAdm.value=false;localStorage.removeItem('jz_adm');bills.value=[];toast('已退出');};
   const verifyAdmin=async()=>{const d=await api.adminLogin(adminPw.value);if(d.success){isAdm.value=true;localStorage.setItem('jz_adm','1');showAdmin.value=false;adminPw.value='';loadAdmin();loadAi();toast('👑 管理员');}else toast('❌ 密码错误');};
   const exitAdmin=()=>{isAdm.value=false;localStorage.removeItem('jz_adm');go('me');};
@@ -293,13 +295,14 @@ createApp({setup(){
   const addUser=async()=>{if(!newUser.value.trim())return;await api.adminAddUser(newUser.value.trim());newUser.value='';loadAdmin();toast('✓ 已添加');};
   const deleteUser=async(id)=>{await api.adminDelUser(id);loadAdmin();toast('🗑 已删除');};
   const exportCSV=()=>{const a=document.createElement('a');a.href='/api/export';a.download='bills.csv';a.click();};
+  const delBill=async(b)=>{if(!confirm("删除 "+((b.amt||b.amount)+" "+(b.cat||b.category))+" ?"))return;try{await api.deleteBill(b.id);loadBills();loadStats();toast("已删除");}catch(e){toast("删除失败: "+e.message);}};
 
   const toast=m=>{const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);};
 
   loadBills();loadAnnounce();loadAi();loadAdmin();loadStats();
   const headerDate=new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'short'});
 
-  return{pg,drawer,showLogin,showAdmin,flt,aiTxt,chat,chatScroll,form,lU,lP,adminPw,usr,isAdm,bills,adminUsers,announce,aiConf,newUser,sIn,sOut,barHtml,cats,tabs,filters,totalIncome,totalExpense,currentNetTotal,sYm,go,openDrawer,filtered,saveBill,sendAi,confirmAi,doLogin,doRegister,doLogout,verifyAdmin,exitAdmin,saveAnnounce,saveAiConf,testAi,addUser,deleteUser,exportCSV,headerDate,onAiInput,onAiFocus,onAiBlur};
+  return{pg,drawer,showLogin,showAdmin,flt,aiTxt,chat,chatScroll,form,lU,lP,adminPw,usr,isAdm,bills,adminUsers,announce,aiConf,newUser,sIn,sOut,barHtml,cats,tabs,filters,totalIncome,totalExpense,currentNetTotal,sYm,go,openDrawer,filtered,saveBill,sendAi,confirmAi,doLogin,doRegister,doLogout,verifyAdmin,exitAdmin,saveAnnounce,saveAiConf,testAi,addUser,deleteUser,exportCSV,delBill,headerDate,onAiInput,onAiFocus,onAiBlur};
 }}).mount('#app');
 </script>
 </body>

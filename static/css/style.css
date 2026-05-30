@@ -372,16 +372,33 @@ textarea.form-input, .bill-textarea {
 }
 
 .bill-actions button {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border: none;
-    border-radius: 6px;
-    background: var(--bg);
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.15s ease;
+}
+.bill-actions button[data-edit] {
+    background: var(--bg);
+    color: var(--text-secondary);
+}
+.bill-actions button[data-edit]:hover {
+    background: #e0e0e0;
+    color: var(--text);
+}
+.bill-actions button[data-delete] {
+    background: #fee2e2;
+    color: #dc2626;
+}
+.bill-actions button[data-delete]:hover {
+    background: #fca5a5;
+    color: #991b1b;
+    transform: scale(1.08);
 }
 
 /* Empty state */
